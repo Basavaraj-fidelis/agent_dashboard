@@ -1,6 +1,8 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { WebSocketServer } from 'ws';
+import { handleWebSocketMessage } from "./websocket";
 
 const app = express();
 app.use(express.json());
@@ -38,6 +40,33 @@ app.use((req, res, next) => {
 
 (async () => {
   const server = await registerRoutes(app);
+  
+  // Setup WebSocket server for real-time communication
+  const wss = new WebSocketServer({ server });
+  
+  wss.on('connection', (ws, req) => {
+    const url = new URL(req.url || '', `http://${req.headers.host}`);
+    const agentId = url.searchParams.get('agentId');
+    const clientType = url.searchParams.get('type'); // 'agent' or 'dashboard'
+    
+    log(`WebSocket connection: ${clientType} ${agentId || 'unknown'}`);
+    
+    ws.on('message', (data) => {
+      try {
+        const message = JSON.parse(data.toString());
+        handleWebSocketMessage(ws, message, agentId, clientType, wss);
+      } catch (error) {
+        console.error('WebSocket message error:', error);
+      }
+    });
+    
+    ws.on('close', () => {
+      log(`WebSocket disconnected: ${clientType} ${agentId || 'unknown'}`);
+    });
+  });
+  
+  // Store WebSocket server reference for use in routes
+  (server as any).wss = wss;
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;

@@ -10,7 +10,24 @@ import InstalledApps from "./InstalledApps";
 import DiskInfo from "./DiskInfo";
 import UsbDevices from "./UsbDevices";
 import UsbStatusSummary from "./UsbStatusSummary";
-import { ArrowLeft, Monitor, Cpu, HardDrive, MemoryStick, Clock, MapPin, Package } from "lucide-react";
+import RemoteDesktop from "./RemoteDesktop";
+import {
+  ArrowLeft,
+  Monitor,
+  Cpu,
+  HardDrive,
+  Network,
+  Shield,
+  Package,
+  Activity,
+  Usb,
+  BarChart3,
+  Clock,
+  MapPin,
+  User,
+  Settings,
+  Screen
+} from "lucide-react";
 import { useState } from "react";
 import { useQuery } from '@tanstack/react-query';
 
@@ -192,6 +209,13 @@ export default function DeviceDetailView({ device, onBack, isLoading }: DeviceDe
   const windowsSecurity = extractData(reportData, 'windows_security', 'WindowsSecurity', 'windowsSecurity');
   const installedApps = extractData(reportData, 'installed_apps.installed_apps', 'installed_apps', 'InstalledApps', 'installedApps');
 
+  const [reportError, setReportError] = useState<string | null>(null);
+  const [usbHistory, setUsbHistory] = useState<any[]>([]);
+  const [isLoadingUsbHistory, setIsLoadingUsbHistory] = useState(false);
+  const [diskInfo, setDiskInfo] = useState<any>(null);
+  const [isLoadingDiskInfo, setIsLoadingDiskInfo] = useState(false);
+  const [showRemoteDesktop, setShowRemoteDesktop] = useState(false);
+
 
   return (
     <div className="space-y-6" data-testid={`device-detail-${device.hostname}`}>
@@ -283,14 +307,43 @@ export default function DeviceDetailView({ device, onBack, isLoading }: DeviceDe
 
       {/* Detailed Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-7">
-          <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
-          <TabsTrigger value="storage" data-testid="tab-storage">Storage</TabsTrigger>
-          <TabsTrigger value="network" data-testid="tab-network">Network</TabsTrigger>
-          <TabsTrigger value="security" data-testid="tab-security">Security</TabsTrigger>
-          <TabsTrigger value="processes" data-testid="tab-processes">Processes</TabsTrigger>
-          <TabsTrigger value="applications" data-testid="tab-applications">Apps</TabsTrigger>
-          <TabsTrigger value="history" data-testid="tab-history">History</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-8 lg:grid-cols-8">
+          <TabsTrigger value="overview" className="flex items-center gap-2">
+            <Monitor className="w-4 h-4" />
+            Overview
+          </TabsTrigger>
+          <TabsTrigger value="processes" className="flex items-center gap-2">
+            <Activity className="w-4 h-4" />
+            Processes
+          </TabsTrigger>
+          <TabsTrigger value="network" className="flex items-center gap-2">
+            <Network className="w-4 h-4" />
+            Network
+          </TabsTrigger>
+          <TabsTrigger value="security" className="flex items-center gap-2">
+            <Shield className="w-4 h-4" />
+            Security
+          </TabsTrigger>
+          <TabsTrigger value="apps" className="flex items-center gap-2">
+            <Package className="w-4 h-4" />
+            Apps
+          </TabsTrigger>
+          <TabsTrigger value="storage" className="flex items-center gap-2">
+            <HardDrive className="w-4 h-4" />
+            Storage
+          </TabsTrigger>
+          <TabsTrigger value="usb" className="flex items-center gap-2">
+            <Usb className="w-4 h-4" />
+            USB/History
+          </TabsTrigger>
+          <TabsTrigger
+            value="remote"
+            className="flex items-center gap-2"
+            disabled={device.status !== "online"}
+          >
+            <Screen className="w-4 h-4" />
+            Remote
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
@@ -520,44 +573,40 @@ export default function DeviceDetailView({ device, onBack, isLoading }: DeviceDe
           )}
         </TabsContent>
 
-        <TabsContent value="history" className="space-y-6">
-          {isLoading || isLoadingReport ? (
-            <Card className="animate-pulse">
-              <CardHeader>
-                <div className="h-5 bg-muted rounded w-1/4"></div>
-              </CardHeader>
-              <CardContent>
-                <div className="h-32 bg-muted rounded"></div>
-              </CardContent>
-            </Card>
-          ) : reportError ? (
-            <div className="text-center text-red-500 p-8">Failed to load device report.</div>
-          ) : (
-            <div className="space-y-6">
-              {/* USB Connection History */}
-              <UsbDevices agentId={device.agentId} />
-              
-              {/* App Installation History - Placeholder for future implementation */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Package className="w-5 h-5" />
-                    Application Installation History
-                    <Badge variant="outline" className="ml-2">Coming Soon</Badge>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground text-sm">
-                    Application installation and uninstallation tracking will be available in a future update.
-                    Currently showing installed applications in the Apps tab.
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-          )}
+        <TabsContent value="usb" className="space-y-6">
+          <UsbStatusSummary
+            device={device}
+            usbHistory={usbHistory}
+            isLoading={isLoadingUsbHistory}
+          />
+          <UsbDevices
+            agentId={device.agentId}
+            isLoading={isLoadingUsbHistory}
+            usbHistory={usbHistory}
+          />
         </TabsContent>
 
-
+        <TabsContent value="remote" className="space-y-6">
+          {device.status === "online" ? (
+            <RemoteDesktop
+              agentId={device.agentId}
+              hostname={device.hostname}
+              onClose={() => setShowRemoteDesktop(false)}
+            />
+          ) : (
+            <Card>
+              <CardContent className="flex items-center justify-center h-96">
+                <div className="text-center">
+                  <Screen className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+                  <p className="text-lg font-medium">Agent Offline</p>
+                  <p className="text-sm text-muted-foreground">
+                    Remote desktop is only available when the agent is online
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
       </Tabs>
     </div>
   );

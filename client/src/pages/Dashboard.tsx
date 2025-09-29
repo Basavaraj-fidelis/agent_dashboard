@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import StatusIndicator from "@/components/StatusIndicator";
-import { Activity, AlertTriangle, CheckCircle, XCircle, Users, Monitor, AlertOctagon, Wifi, USB } from "lucide-react";
+import { Activity, AlertTriangle, CheckCircle, XCircle, Users, Monitor, AlertOctagon, Wifi, HardDrive, Shield } from "lucide-react";
 import { useQuery } from '@tanstack/react-query';
 
 interface Device {
@@ -306,7 +306,7 @@ export default function Dashboard() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <USB className="w-5 h-5" />
+            <HardDrive className="w-5 h-5" />
             USB Devices
           </CardTitle>
           <CardDescription>Status of USB devices across agents</CardDescription>
@@ -353,7 +353,7 @@ export default function Dashboard() {
             </div>
           ) : (
             <div className="text-center py-8">
-              <USB className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <HardDrive className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground">No agents connected</p>
             </div>
           )}

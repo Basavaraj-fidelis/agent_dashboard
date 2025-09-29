@@ -31,6 +31,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
         location: heartbeatData.location
       });
 
+      // Store system information from heartbeat as a report (if available)
+      if (heartbeatData.cpu || heartbeatData.ram || heartbeatData.graphics) {
+        console.log(`[DEBUG] Creating system_info_heartbeat report for agent ${agentId}`);
+        const systemInfoReport = {
+          system_info: {
+            SystemInfo: {
+              cpu: heartbeatData.cpu || "Unknown",
+              ram: heartbeatData.ram || "Unknown", 
+              graphics: heartbeatData.graphics || "Unknown",
+              total_disk: "Information available in full system report"
+            },
+            NetworkInfo: {
+              local_ip: heartbeatData.localIp || "Unknown",
+              public_ip: heartbeatData.publicIp || "Unknown",
+              location: heartbeatData.location || "Unknown",
+              nic_details: []
+            }
+          },
+          source: "heartbeat",
+          timestamp: new Date().toISOString()
+        };
+
+        try {
+          await storage.insertReport({
+            agentId,
+            reportType: "system_info_heartbeat",
+            reportData: systemInfoReport,
+            collectedAt: new Date()
+          });
+          console.log(`[DEBUG] Successfully stored system_info_heartbeat report for agent ${agentId}`);
+        } catch (reportError) {
+          console.error(`[ERROR] Failed to store system_info_heartbeat report for agent ${agentId}:`, reportError);
+        }
+      } else {
+        console.log(`[DEBUG] No system info found in heartbeat from agent ${agentId}`);
+      }
+
       res.json({ success: true, message: "Heartbeat received" });
     } catch (error) {
       console.error("Error processing heartbeat:", error);
@@ -104,12 +141,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Agent not found" });
       }
 
-      const latestReport = await storage.getLatestReport(agentId, "full_system_report");
+      // Use same fallback logic as latest-report endpoint
+      let latestReportData = null;
+      
+      // First try full system report
+      const fullReport = await storage.getLatestReport(agentId, "full_system_report");
+      
+      if (fullReport && fullReport.reportData && Object.keys(fullReport.reportData).length > 0) {
+        latestReportData = fullReport.reportData;
+      } else {
+        // Fall back to heartbeat-based system info
+        const heartbeatReport = await storage.getLatestReport(agentId, "system_info_heartbeat");
+        if (heartbeatReport && heartbeatReport.reportData) {
+          latestReportData = heartbeatReport.reportData;
+        }
+      }
+
       const heartbeat = await storage.getLatestHeartbeat(agentId);
 
       res.json({
         ...agent,
-        latestReport: latestReport?.reportData,
+        latestReport: latestReportData,
         heartbeat
       });
     } catch (error) {
@@ -131,46 +183,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/agents/:agentId/latest-report', async (req, res) => {
     try {
       const { agentId } = req.params;
+      console.log(`[DEBUG] Fetching latest report for agent ${agentId}`);
 
       // First try to get full system report
-      const report = await storage.getLatestReport(agentId, "full_system_report");
+      const fullReport = await storage.getLatestReport(agentId, "full_system_report");
+      console.log(`[DEBUG] Full system report found:`, !!fullReport);
+      console.log(`[DEBUG] Full system report data:`, fullReport?.reportData ? Object.keys(fullReport.reportData).length : 'null/undefined');
 
-      if (report && report.reportData) {
-        return res.json(report.reportData);
+      if (fullReport && fullReport.reportData && Object.keys(fullReport.reportData).length > 0) {
+        console.log(`[DEBUG] Returning full system report for agent ${agentId}`);
+        return res.json(fullReport.reportData);
       }
 
-      // If no full report, construct basic system info from heartbeat data
-      const heartbeat = await storage.getLatestHeartbeat(agentId);
+      // If no full report, try to get system info from heartbeat report
+      const heartbeatReport = await storage.getLatestReport(agentId, "system_info_heartbeat");
+      console.log(`[DEBUG] Heartbeat system report found:`, !!heartbeatReport);
       
-      if (!heartbeat) {
-        return res.status(404).json({ error: 'No data found for this agent' });
+      if (heartbeatReport && heartbeatReport.reportData) {
+        console.log(`[DEBUG] Returning heartbeat system report for agent ${agentId}`);
+        return res.json(heartbeatReport.reportData);
       }
 
-      // Look for system info in heartbeat or recent heartbeat data
-      // Try to get the agent info which may contain system details from heartbeat
-      const agent = await storage.getAgent(agentId);
-      
-      // Get the actual heartbeat data from the heartbeat endpoint logs to reconstruct system info
-      // Since we receive heartbeat data with cpu, ram, graphics info, we can construct a basic report
-      const basicReport = {
-        system_info: {
-          SystemInfo: {
-            cpu: "System information will be available after next full report",
-            ram: "System information will be available after next full report", 
-            graphics: "System information will be available after next full report",
-            total_disk: "System information will be available after next full report"
-          },
-          NetworkInfo: {
-            local_ip: heartbeat.localIp || "Unknown",
-            public_ip: heartbeat.publicIp || "Unknown", 
-            location: heartbeat.location || "Unknown",
-            nic_details: []
-          }
-        },
-        note: "This is basic information. For detailed system report, ensure agent sends full system reports."
-      };
-
-      res.json(basicReport);
+      // If no reports at all, return empty response
+      console.log(`[DEBUG] No reports found for agent ${agentId}`);
+      return res.status(404).json({ error: 'No system information available for this agent' });
     } catch (error) {
       console.error('Error fetching latest report:', error);
       res.status(500).json({ error: 'Failed to fetch latest report' });

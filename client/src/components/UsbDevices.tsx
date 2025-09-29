@@ -6,7 +6,7 @@ import { Usb, HardDrive } from "lucide-react";
 interface UsbDevice {
   DeviceID: string;
   Model: string;
-  SizeGB: string;
+  SizeGB: string | number;
   Status: string;
 }
 
@@ -62,7 +62,7 @@ export default function UsbDevices({ usbDevices }: UsbDevicesProps) {
               <div>
                 <p className="font-medium text-sm">{device.Model || 'Unknown USB Device'}</p>
                 <p className="text-xs text-muted-foreground">
-                  {device.DeviceID} • {device.SizeGB || 'Unknown size'}
+                  {device.DeviceID} • {device.SizeGB ? `${device.SizeGB} GB` : 'Unknown size'}
                 </p>
               </div>
             </div>

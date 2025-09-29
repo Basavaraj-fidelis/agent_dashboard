@@ -1,4 +1,3 @@
-
 import DeviceList from "@/components/DeviceList";
 import DeviceDetailView from "@/components/DeviceDetailView";
 import { useState, useEffect } from "react";
@@ -119,7 +118,7 @@ export default function SystemMonitor() {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const data: Device[] = await response.json();
-      setDevices(data);
+      setDevices(data || []);
     } catch (error) {
       console.error("Failed to fetch devices:", error);
     } finally {
@@ -130,11 +129,11 @@ export default function SystemMonitor() {
   const fetchDeviceDetails = async (agentId: string) => {
     try {
       setIsLoadingDetails(true);
-      
+
       // Fetch the latest report for this agent
       const reportResponse = await fetch(`/api/agents/${agentId}/latest-report`);
       let reportData = null;
-      
+
       if (reportResponse.ok) {
         reportData = await reportResponse.json();
       }
@@ -147,14 +146,14 @@ export default function SystemMonitor() {
         ...baseDevice,
         systemInfo: reportData?.system_info?.SystemInfo ? {
           cpu: reportData.system_info.SystemInfo.cpu || "Unknown",
-          ram: reportData.system_info.SystemInfo.ram || "Unknown", 
+          ram: reportData.system_info.SystemInfo.ram || "Unknown",
           graphics: reportData.system_info.SystemInfo.graphics || "Unknown",
           totalDisk: reportData.system_info.SystemInfo.total_disk || "Unknown"
         } : undefined,
         diskInfo: reportData?.system_info?.DiskInfo?.map((disk: any) => ({
           Device: disk.Device || disk.Mountpoint || "Unknown",
           Total: disk.Total || "Unknown",
-          Used: disk.Used || "Unknown", 
+          Used: disk.Used || "Unknown",
           Free: disk.Free || "Unknown",
           "Usage %": disk["Usage %"] || "Unknown"
         })) || undefined,
@@ -204,7 +203,7 @@ export default function SystemMonitor() {
 
   if (selectedDevice && detailedDevice) {
     return (
-      <DeviceDetailView 
+      <DeviceDetailView
         device={detailedDevice}
         onBack={handleBackToList}
         isLoading={isLoadingDetails}
@@ -213,7 +212,7 @@ export default function SystemMonitor() {
   }
 
   return (
-    <DeviceList 
+    <DeviceList
       devices={devices}
       onDeviceSelect={handleDeviceSelect}
       onRefresh={handleRefresh}

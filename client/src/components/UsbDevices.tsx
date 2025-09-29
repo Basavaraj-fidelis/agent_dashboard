@@ -190,7 +190,10 @@ export default function UsbDevices({ agentId }: UsbDevicesProps) {
                     <span className="text-xs">
                       {record.disconnectedAt 
                         ? formatDateTime(record.disconnectedAt)
-                        : <span className="text-muted-foreground italic">Still connected</span>
+                        : (record.status === 'connected' 
+                            ? <span className="text-muted-foreground italic">Still connected</span>
+                            : <span className="text-muted-foreground italic">-</span>
+                          )
                       }
                     </span>
                   </td>

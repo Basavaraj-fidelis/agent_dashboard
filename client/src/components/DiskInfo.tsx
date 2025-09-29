@@ -3,6 +3,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { HardDrive } from "lucide-react";
+import { useQuery } from '@tanstack/react-query';
 
 interface DiskData {
   Device: string;
@@ -14,9 +15,23 @@ interface DiskData {
 
 interface DiskInfoProps {
   diskData: DiskData[];
+  agentId?: string;
 }
 
-export default function DiskInfo({ diskData }: DiskInfoProps) {
+export default function DiskInfo({ diskData, agentId }: DiskInfoProps) {
+  // Get USB connection history to filter out disconnected USB drives
+  const { data: usbHistory } = useQuery({
+    queryKey: ['usb-history', agentId],
+    queryFn: async () => {
+      if (!agentId) return null;
+      const response = await fetch(`/api/agents/${agentId}/usb-history`);
+      if (!response.ok) return null;
+      return response.json();
+    },
+    enabled: !!agentId,
+    refetchInterval: 30000
+  });
+
   const getUsagePercentage = (usageStr: string) => {
     const percentage = parseFloat(usageStr.replace('%', ''));
     return isNaN(percentage) ? 0 : percentage;
@@ -28,7 +43,38 @@ export default function DiskInfo({ diskData }: DiskInfoProps) {
     return "default";
   };
 
-  if (!diskData || diskData.length === 0) {
+  // Filter out USB drives that are currently disconnected
+  const filterActiveDrives = (drives: DiskData[]) => {
+    if (!usbHistory?.history || !Array.isArray(usbHistory.history)) {
+      return drives; // If no USB history, show all drives
+    }
+
+    // Get currently connected USB drives
+    const connectedUsbDrives = usbHistory.history
+      .filter((record: any) => record.status === 'connected')
+      .map((record: any) => record.deviceModel);
+
+    // Filter out disconnected USB drives (typically drives E:, F:, etc.)
+    return drives.filter(drive => {
+      const deviceName = drive.Device || drive.device || drive.Mountpoint || '';
+      
+      // Always keep system drives (C:, typically)
+      if (deviceName.startsWith('C:') || deviceName.startsWith('/')) {
+        return true;
+      }
+
+      // For other drives (E:, F:, etc.), check if there's a connected USB device
+      if (deviceName.match(/^[D-Z]:/i)) {
+        return connectedUsbDrives.length > 0; // Show if any USB is connected
+      }
+
+      return true; // Keep other drives
+    });
+  };
+
+  const filteredDiskData = filterActiveDrives(diskData || []);
+
+  if (!filteredDiskData || filteredDiskData.length === 0) {
     return (
       <Card>
         <CardHeader>
@@ -53,7 +99,7 @@ export default function DiskInfo({ diskData }: DiskInfoProps) {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {diskData.map((disk, index) => {
+        {filteredDiskData.map((disk, index) => {
           const usagePercentage = getUsagePercentage(disk["Usage %"] || disk.usage || "0%");
           const deviceName = disk.Device || disk.device || disk.Mountpoint || `Drive ${index + 1}`;
           return (

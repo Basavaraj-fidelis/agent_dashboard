@@ -364,7 +364,9 @@ export default function DeviceDetailView({ device, onBack, isLoading }: DeviceDe
                   </CardContent>
                 </Card>
 
-                <DiskInfo diskData={diskInfo || []} />
+                <div className="w-full">
+                  <DiskInfo diskData={diskInfo || []} agentId={device.agentId} />
+                </div>
               </div>
 
               {/* USB Devices Section */}
@@ -541,7 +543,7 @@ export default function DeviceDetailView({ device, onBack, isLoading }: DeviceDe
           )}
         </TabsContent>
 
-        
+
       </Tabs>
     </div>
   );

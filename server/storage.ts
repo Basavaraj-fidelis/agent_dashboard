@@ -182,9 +182,11 @@ export class DatabaseStorage implements IStorage {
     const connectedDevices = await this.getConnectedUsbDevices(agentId);
     const now = new Date();
 
+    console.log(`[DEBUG] Processing USB changes for ${agentId}: Current=${currentDevices.length} devices, Previously connected=${connectedDevices.length} devices`);
+
     // Create a map of currently connected devices for quick lookup
     const currentDeviceMap = new Map(
-      currentDevices.map(device => [device.DeviceID, device])
+      currentDevices.map(device => [device.DeviceID || device.deviceId, device])
     );
 
     // Create a map of previously connected devices for quick lookup
@@ -194,12 +196,14 @@ export class DatabaseStorage implements IStorage {
 
     // Handle new USB devices (appeared in current but not in previous)
     for (const device of currentDevices) {
-      if (!connectedDeviceMap.has(device.DeviceID)) {
+      const deviceId = device.DeviceID || device.deviceId;
+      if (!connectedDeviceMap.has(deviceId)) {
+        console.log(`[DEBUG] New USB device detected: ${deviceId} - ${device.Model || 'Unknown'}`);
         await this.insertUsbConnection({
           agentId,
-          deviceId: device.DeviceID,
+          deviceId,
           deviceModel: device.Model || 'Unknown USB Device',
-          sizeGb: device.SizeGB?.toString() || null,
+          sizeGb: device.SizeGB?.toString() || device.sizeGb?.toString() || null,
           status: 'connected',
           connectedAt: now,
           disconnectedAt: null
@@ -210,9 +214,12 @@ export class DatabaseStorage implements IStorage {
     // Handle disconnected USB devices (missing in current but existed before & still marked connected)
     for (const connectedDevice of connectedDevices) {
       if (!currentDeviceMap.has(connectedDevice.deviceId)) {
+        console.log(`[DEBUG] USB device disconnected: ${connectedDevice.deviceId} - ${connectedDevice.deviceModel}`);
         await this.disconnectUsbDevice(agentId, connectedDevice.deviceId);
       }
     }
+
+    console.log(`[DEBUG] USB change processing completed for ${agentId}`);
   }
 }
 

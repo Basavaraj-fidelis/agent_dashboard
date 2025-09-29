@@ -50,6 +50,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         location: heartbeatData.location
       });
 
+      // Process USB device changes from heartbeat (if available)
+      const usbDevices = heartbeatData.usbDevices || heartbeatData.USBDevices || [];
+      
+      try {
+        // Always process USB changes, even if empty array (handles disconnections)
+        await storage.processUsbDeviceChanges(agentId, usbDevices);
+        console.log(`[DEBUG] Successfully processed USB device changes from heartbeat for agent ${agentId}, found ${usbDevices.length} devices`);
+      } catch (usbError) {
+        console.error(`[ERROR] Failed to process USB device changes from heartbeat for agent ${agentId}:`, usbError);
+      }
+
       // Store system information from heartbeat as a report (if available)
       if (heartbeatData.cpu || heartbeatData.ram || heartbeatData.graphics) {
         console.log(`[DEBUG] Creating system_info_heartbeat report for agent ${agentId}`);
@@ -66,7 +77,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               public_ip: heartbeatData.publicIp || "Unknown",
               location: heartbeatData.location || "Unknown",
               nic_details: []
-            }
+            },
+            USBDevices: usbDevices
           },
           source: "heartbeat",
           timestamp: new Date().toISOString()

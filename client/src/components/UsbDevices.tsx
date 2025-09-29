@@ -73,6 +73,27 @@ export default function UsbDevices({ agentId }: UsbDevicesProps) {
     });
   };
 
+  const formatDuration = (duration: string) => {
+    // If it's already formatted from the server, return as is
+    if (duration.includes('minutes') || duration === 'Still connected') {
+      return duration;
+    }
+    
+    // Try to parse as number (minutes)
+    const minutes = parseInt(duration);
+    if (!isNaN(minutes)) {
+      if (minutes < 60) {
+        return `${minutes} minutes`;
+      } else {
+        const hours = Math.floor(minutes / 60);
+        const remainingMinutes = minutes % 60;
+        return `${hours}h ${remainingMinutes}m`;
+      }
+    }
+    
+    return duration;
+  };
+
   if (isLoading) {
     return (
       <Card>
@@ -175,7 +196,7 @@ export default function UsbDevices({ agentId }: UsbDevicesProps) {
                   </td>
                   <td className="py-3 px-3">
                     <span className="text-xs">
-                      {record.duration}
+                      {formatDuration(record.duration)}
                     </span>
                   </td>
                 </tr>

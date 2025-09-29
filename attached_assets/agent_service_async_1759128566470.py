@@ -219,7 +219,16 @@ def poll_commands():
             print("[Warning] Command polling returned non-JSON data")
             return
 
+        # Ensure commands is a list
+        if not isinstance(commands, list):
+            print(f"[Warning] Expected list of commands, got {type(commands)}: {commands}")
+            return
+
         for cmd in commands:
+            # Ensure each command is a dictionary
+            if not isinstance(cmd, dict):
+                print(f"[Warning] Expected command dict, got {type(cmd)}: {cmd}")
+                continue
             if cmd.get("command") == "remote_session":
                 ...
 

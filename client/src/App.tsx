@@ -7,13 +7,14 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import AppSidebar from "@/components/AppSidebar";
 import ThemeToggle from "@/components/ThemeToggle";
 import Dashboard from "@/pages/Dashboard";
+import SystemMonitor from "@/pages/SystemMonitor";
 import NotFound from "@/pages/not-found";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Dashboard} />
-      <Route path="/monitor" component={() => <div className="p-6"><h1>System Monitor</h1><p>Performance metrics coming soon...</p></div>} />
+      <Route path="/monitor" component={SystemMonitor} />
       <Route path="/security" component={() => <div className="p-6"><h1>Security Overview</h1><p>Security dashboard coming soon...</p></div>} />
       <Route path="/network" component={() => <div className="p-6"><h1>Network Monitor</h1><p>Network analysis coming soon...</p></div>} />
       <Route path="/applications" component={() => <div className="p-6"><h1>Application Manager</h1><p>Application management coming soon...</p></div>} />

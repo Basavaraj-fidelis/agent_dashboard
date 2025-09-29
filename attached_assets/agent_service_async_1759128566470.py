@@ -27,6 +27,7 @@ HEARTBEAT_INTERVAL = config.getint("GENERAL", "HEARTBEAT_INTERVAL", fallback=300
 FULL_REPORT_INTERVAL = config.getint("GENERAL", "FULL_REPORT_INTERVAL", fallback=3600)
 FULL_REPORT_FILENAME = config.get("GENERAL", "FULL_REPORT_FILENAME", fallback="full_system_report.json")
 AGENT_ID = config.get("GENERAL", "AGENT_ID", fallback="AGENT001")
+REMOTE_DESKTOP_SERVER_URL = config.get("GENERAL", "REMOTE_DESKTOP_SERVER_URL", fallback="ws://0.0.0.0:5000")
 
 # ITSM URLs are now dynamically constructed using AGENT_ID
 ITSM_HEARTBEAT_URL = config.get("ITSM", "HEARTBEAT_URL").replace('{AGENT_ID}', AGENT_ID)
@@ -327,7 +328,7 @@ async def main_async():
     """Main async function to run both services"""
     # Start remote desktop service as a background task
     remote_desktop_task = asyncio.create_task(
-        start_remote_desktop_service(AGENT_ID, "ws://0.0.0.0:5000")
+        start_remote_desktop_service(AGENT_ID, REMOTE_DESKTOP_SERVER_URL)
     )
     
     # Run the main loop in a separate thread since it's synchronous
@@ -347,7 +348,7 @@ if __name__ == "__main__":
     try:
         loop = asyncio.get_running_loop()
         # If we're in a loop, create a task
-        asyncio.create_task(start_remote_desktop_service(AGENT_ID, "ws://0.0.0.0:5000"))
+        asyncio.create_task(start_remote_desktop_service(AGENT_ID, REMOTE_DESKTOP_SERVER_URL))
         main_loop()
     except RuntimeError:
         # No event loop running, start our own

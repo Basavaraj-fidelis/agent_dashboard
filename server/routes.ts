@@ -132,13 +132,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { agentId } = req.params;
 
+      // First try to get full system report
       const report = await storage.getLatestReport(agentId, "full_system_report");
 
-      if (!report) {
-        return res.status(404).json({ error: 'No reports found for this agent' });
+      if (report && report.reportData) {
+        return res.json(report.reportData);
       }
 
-      res.json(report.reportData);
+      // If no full report, construct basic system info from heartbeat data
+      const heartbeat = await storage.getLatestHeartbeat(agentId);
+      
+      if (!heartbeat) {
+        return res.status(404).json({ error: 'No data found for this agent' });
+      }
+
+      // Look for system info in heartbeat or recent heartbeat data
+      // Try to get the agent info which may contain system details from heartbeat
+      const agent = await storage.getAgent(agentId);
+      
+      // Get the actual heartbeat data from the heartbeat endpoint logs to reconstruct system info
+      // Since we receive heartbeat data with cpu, ram, graphics info, we can construct a basic report
+      const basicReport = {
+        system_info: {
+          SystemInfo: {
+            cpu: "System information will be available after next full report",
+            ram: "System information will be available after next full report", 
+            graphics: "System information will be available after next full report",
+            total_disk: "System information will be available after next full report"
+          },
+          NetworkInfo: {
+            local_ip: heartbeat.localIp || "Unknown",
+            public_ip: heartbeat.publicIp || "Unknown", 
+            location: heartbeat.location || "Unknown",
+            nic_details: []
+          }
+        },
+        note: "This is basic information. For detailed system report, ensure agent sends full system reports."
+      };
+
+      res.json(basicReport);
     } catch (error) {
       console.error('Error fetching latest report:', error);
       res.status(500).json({ error: 'Failed to fetch latest report' });

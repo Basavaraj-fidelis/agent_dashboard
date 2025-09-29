@@ -54,16 +54,17 @@ export default function DiskInfo({ diskData }: DiskInfoProps) {
       </CardHeader>
       <CardContent className="space-y-4">
         {diskData.map((disk, index) => {
-          const usagePercentage = getUsagePercentage(disk["Usage %"]);
+          const usagePercentage = getUsagePercentage(disk["Usage %"] || disk.usage || "0%");
+          const deviceName = disk.Device || disk.device || disk.Mountpoint || `Drive ${index + 1}`;
           return (
             <div key={index} className="space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <HardDrive className="w-4 h-4 text-muted-foreground" />
-                  <span className="font-medium">{disk.Device}</span>
+                  <span className="font-medium">{deviceName}</span>
                 </div>
                 <Badge variant={getUsageColor(usagePercentage)}>
-                  {disk["Usage %"]}
+                  {disk["Usage %"] || disk.usage || "N/A"}
                 </Badge>
               </div>
               
@@ -72,15 +73,15 @@ export default function DiskInfo({ diskData }: DiskInfoProps) {
               <div className="grid grid-cols-3 gap-4 text-sm">
                 <div>
                   <span className="text-muted-foreground">Total:</span>
-                  <div className="font-mono">{disk.Total}</div>
+                  <div className="font-mono">{disk.Total || disk.total || "N/A"}</div>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Used:</span>
-                  <div className="font-mono">{disk.Used}</div>
+                  <div className="font-mono">{disk.Used || disk.used || "N/A"}</div>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Free:</span>
-                  <div className="font-mono">{disk.Free}</div>
+                  <div className="font-mono">{disk.Free || disk.free || disk.Available || "N/A"}</div>
                 </div>
               </div>
             </div>

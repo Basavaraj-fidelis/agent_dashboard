@@ -21,12 +21,20 @@ export default function InstalledApps({ apps }: InstalledAppsProps) {
   const [publisherFilter, setPublisherFilter] = useState("all");
 
   const publishers = useMemo(() => {
+    // Ensure apps is an array before mapping
+    if (!Array.isArray(apps)) {
+      return [];
+    }
     const publisherSet = new Set(apps.map(app => app.publisher));
     const uniquePublishers = Array.from(publisherSet);
     return uniquePublishers.filter(p => p !== "Unknown").sort();
   }, [apps]);
 
   const filteredApps = useMemo(() => {
+    // Ensure apps is an array before filtering
+    if (!Array.isArray(apps)) {
+      return [];
+    }
     return apps.filter(app => {
       const matchesSearch = searchQuery === "" || 
         app.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -46,7 +54,7 @@ export default function InstalledApps({ apps }: InstalledAppsProps) {
             <Package className="w-5 h-5" />
             Installed Applications
             <Badge variant="outline" className="ml-2">
-              {filteredApps.length} of {apps.length}
+              {Array.isArray(filteredApps) ? filteredApps.length : 0} of {Array.isArray(apps) ? apps.length : 0}
             </Badge>
           </CardTitle>
         </div>
@@ -78,7 +86,7 @@ export default function InstalledApps({ apps }: InstalledAppsProps) {
       </CardHeader>
       <CardContent>
         <div className="space-y-2 max-h-96 overflow-y-auto">
-          {filteredApps.map((app, index) => (
+          {Array.isArray(filteredApps) && filteredApps.map((app, index) => (
             <div 
               key={index} 
               className="flex items-center justify-between p-3 border border-card-border rounded-md hover-elevate"
@@ -115,7 +123,7 @@ export default function InstalledApps({ apps }: InstalledAppsProps) {
             </div>
           ))}
           
-          {filteredApps.length === 0 && (
+          {(!Array.isArray(filteredApps) || filteredApps.length === 0) && (
             <div className="text-center py-8 text-muted-foreground">
               <Package className="w-8 h-8 mx-auto mb-2 opacity-50" />
               <p className="text-sm">No applications found matching your criteria</p>

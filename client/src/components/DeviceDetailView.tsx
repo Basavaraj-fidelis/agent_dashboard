@@ -177,12 +177,12 @@ export default function DeviceDetailView({ device, onBack, isLoading }: DeviceDe
     return null;
   };
 
-  const systemInfo = extractData(reportData, 'SystemInfo', 'system_info.SystemInfo', 'system_info');
-  const diskInfo = extractData(reportData, 'DiskInfo', 'disk_info', 'diskInfo');
-  const topProcesses = extractData(reportData, 'TopProcesses', 'top_processes', 'topProcesses');
-  const networkInfo = extractData(reportData, 'NetworkInfo', 'network_info', 'networkInfo');
-  const windowsSecurity = extractData(reportData, 'WindowsSecurity', 'windows_security', 'windowsSecurity');
-  const installedApps = extractData(reportData, 'InstalledApps', 'installed_apps', 'installedApps');
+  const systemInfo = extractData(reportData, 'system_info.SystemInfo', 'SystemInfo', 'system_info');
+  const diskInfo = extractData(reportData, 'system_info.DiskInfo', 'DiskInfo', 'disk_info', 'diskInfo');
+  const topProcesses = extractData(reportData, 'top_processes', 'TopProcesses', 'topProcesses');
+  const networkInfo = extractData(reportData, 'system_info.NetworkInfo', 'NetworkInfo', 'network_info', 'networkInfo');
+  const windowsSecurity = extractData(reportData, 'windows_security', 'WindowsSecurity', 'windowsSecurity');
+  const installedApps = extractData(reportData, 'installed_apps.installed_apps', 'installed_apps', 'InstalledApps', 'installedApps');
 
   console.log('[DEBUG] Extracted data:', {
     systemInfo: !!systemInfo,
@@ -347,7 +347,7 @@ export default function DeviceDetailView({ device, onBack, isLoading }: DeviceDe
                         </div>
                         <div className="grid grid-cols-3 gap-2 text-sm">
                           <span className="font-medium">Total Disk:</span>
-                          <span className="col-span-2">{systemInfo.totalDisk}</span>
+                          <span className="col-span-2">{systemInfo.totalDisk || systemInfo.total_disk || 'N/A'}</span>
                         </div>
                       </>
                     ) : (
@@ -455,10 +455,10 @@ export default function DeviceDetailView({ device, onBack, isLoading }: DeviceDe
             <div className="text-center text-red-500 p-8">Failed to load device report.</div>
           ) : (
             <NetworkInfo
-              localIp={networkInfo?.local_ip || "N/A"}
-              publicIp={networkInfo?.public_ip || "N/A"}
-              location={networkInfo?.location || "N/A"}
-              nicDetails={networkInfo?.nic_details || []}
+              localIp={networkInfo?.local_ip || device.systemInfo?.localIp || "N/A"}
+              publicIp={networkInfo?.public_ip || device.systemInfo?.publicIp || "N/A"}
+              location={networkInfo?.location || device.location || "N/A"}
+              nicDetails={Array.isArray(networkInfo?.nic_details) ? networkInfo.nic_details : []}
               openPorts={device.openPorts || []}
             />
           )}
@@ -481,7 +481,7 @@ export default function DeviceDetailView({ device, onBack, isLoading }: DeviceDe
           ) : reportError ? (
             <div className="text-center text-red-500 p-8">Failed to load device report.</div>
           ) : (
-            <InstalledApps apps={installedApps || []} />
+            <InstalledApps apps={Array.isArray(installedApps) ? installedApps : []} />
           )}
         </TabsContent>
 

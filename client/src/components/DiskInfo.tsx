@@ -43,33 +43,11 @@ export default function DiskInfo({ diskData, agentId }: DiskInfoProps) {
     return "default";
   };
 
-  // Filter out USB drives that are currently disconnected
+  // Show all drives - USB filtering should be minimal to avoid hiding system drives
   const filterActiveDrives = (drives: DiskData[]) => {
-    if (!usbHistory?.history || !Array.isArray(usbHistory.history)) {
-      return drives; // If no USB history, show all drives
-    }
-
-    // Get currently connected USB drives
-    const connectedUsbDrives = usbHistory.history
-      .filter((record: any) => record.status === 'connected')
-      .map((record: any) => record.deviceModel);
-
-    // Filter out disconnected USB drives (typically drives E:, F:, etc.)
-    return drives.filter(drive => {
-      const deviceName = drive.Device || drive.device || drive.Mountpoint || '';
-      
-      // Always keep system drives (C:, typically)
-      if (deviceName.startsWith('C:') || deviceName.startsWith('/')) {
-        return true;
-      }
-
-      // For other drives (E:, F:, etc.), check if there's a connected USB device
-      if (deviceName.match(/^[D-Z]:/i)) {
-        return connectedUsbDrives.length > 0; // Show if any USB is connected
-      }
-
-      return true; // Keep other drives
-    });
+    // For now, show all drives to avoid hiding legitimate system partitions
+    // USB-specific filtering can be handled separately in the USB devices component
+    return drives || [];
   };
 
   const filteredDiskData = filterActiveDrives(diskData || []);

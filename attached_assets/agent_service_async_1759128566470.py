@@ -72,41 +72,49 @@ def ensure_agent_registered(conn, agent_id, hostname, os_name, location, usernam
         conn.commit()
 
 def insert_heartbeat(agent_id, heartbeat_data):
-    conn = get_db_connection()
-    ensure_agent_registered(conn,
-                            agent_id,
-                            heartbeat_data["deviceName"],
-                            heartbeat_data["os"],
-                            heartbeat_data["location"],
-                            heartbeat_data["username"])
-    cur = conn.cursor()
-    cur.execute("""
-        INSERT INTO heartbeat_current(agent_id, collected_at, local_ip, public_ip, location)
-        VALUES (%s, NOW(), %s, %s, %s)
-        ON CONFLICT (agent_id)
-        DO UPDATE SET collected_at = NOW(),
-                      local_ip = EXCLUDED.local_ip,
-                      public_ip = EXCLUDED.public_ip,
-                      location = EXCLUDED.location;
-    """, (agent_id, heartbeat_data.get("localIp"), heartbeat_data.get("publicIp"), heartbeat_data.get("location")))
-    cur.execute("""
-        INSERT INTO heartbeat_history(agent_id, collected_at, local_ip, public_ip, location)
-        VALUES (%s, NOW(), %s, %s, %s)
-    """, (agent_id, heartbeat_data.get("localIp"), heartbeat_data.get("publicIp"), heartbeat_data.get("location")))
-    conn.commit()
-    cur.close()
-    conn.close()
+    try:
+        conn = get_db_connection()
+        ensure_agent_registered(conn,
+                                agent_id,
+                                heartbeat_data["deviceName"],
+                                heartbeat_data["os"],
+                                heartbeat_data["location"],
+                                heartbeat_data["username"])
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO heartbeat_current(agent_id, collected_at, local_ip, public_ip, location)
+            VALUES (%s, NOW(), %s, %s, %s)
+            ON CONFLICT (agent_id)
+            DO UPDATE SET collected_at = NOW(),
+                          local_ip = EXCLUDED.local_ip,
+                          public_ip = EXCLUDED.public_ip,
+                          location = EXCLUDED.location;
+        """, (agent_id, heartbeat_data.get("localIp"), heartbeat_data.get("publicIp"), heartbeat_data.get("location")))
+        cur.execute("""
+            INSERT INTO heartbeat_history(agent_id, collected_at, local_ip, public_ip, location)
+            VALUES (%s, NOW(), %s, %s, %s)
+        """, (agent_id, heartbeat_data.get("localIp"), heartbeat_data.get("publicIp"), heartbeat_data.get("location")))
+        conn.commit()
+        cur.close()
+        conn.close()
+        print(f"[Info] Heartbeat data saved to database")
+    except Exception as e:
+        print(f"[Warning] Failed to save heartbeat to database: {e}")
 
 def insert_full_report(agent_id, report_json):
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute("""
-        INSERT INTO agent_reports(agent_id, report_type, report_data, collected_at)
-        VALUES (%s, %s, %s, NOW())
-    """, (agent_id, "full_system_report", json.dumps(report_json)))
-    conn.commit()
-    cur.close()
-    conn.close()
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO agent_reports(agent_id, report_type, report_data, collected_at)
+            VALUES (%s, %s, %s, NOW())
+        """, (agent_id, "full_system_report", json.dumps(report_json)))
+        conn.commit()
+        cur.close()
+        conn.close()
+        print(f"[Info] Full report saved to database")
+    except Exception as e:
+        print(f"[Warning] Failed to save full report to database: {e}")
 
 # ======================
 # Heartbeat Payload

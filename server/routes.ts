@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { eq, desc } from "drizzle-orm";
 import { agents, heartbeatCurrent, agentReports } from "../shared/schema";
-import { db } from "../shared/db"; // Assuming db is exported from shared/db
+import { db } from "./db";
 
 // Helper function to determine agent status
 function getAgentStatus(lastHeartbeat: Date): "online" | "warning" | "offline" {

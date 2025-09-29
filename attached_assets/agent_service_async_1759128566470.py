@@ -26,10 +26,11 @@ FULL_REPORT_INTERVAL = config.getint("GENERAL", "FULL_REPORT_INTERVAL", fallback
 FULL_REPORT_FILENAME = config.get("GENERAL", "FULL_REPORT_FILENAME", fallback="full_system_report.json")
 AGENT_ID = config.get("GENERAL", "AGENT_ID", fallback="AGENT001")
 
-ITSM_HEARTBEAT_URL = config.get("ITSM", "HEARTBEAT_URL")
-ITSM_REPORT_URL = config.get("ITSM", "FULL_REPORT_URL")
-ITSM_COMMANDS_URL = config.get("ITSM", "COMMANDS_URL")
-ITSM_RESULTS_URL = config.get("ITSM", "RESULTS_URL")
+# ITSM URLs are now dynamically constructed using AGENT_ID
+ITSM_HEARTBEAT_URL = config.get("ITSM", "HEARTBEAT_URL").replace('{AGENT_ID}', AGENT_ID)
+ITSM_REPORT_URL = config.get("ITSM", "FULL_REPORT_URL").replace('{AGENT_ID}', AGENT_ID)
+ITSM_COMMANDS_URL = config.get("ITSM", "COMMANDS_URL").replace('{AGENT_ID}', AGENT_ID)
+ITSM_RESULTS_URL = config.get("ITSM", "RESULTS_URL").replace('{AGENT_ID}', AGENT_ID)
 
 DB_URL = config.get("Database", "DB_URL")
 

@@ -13,6 +13,8 @@ import platform
 import socket
 from display_agent_data import generate_report
 import nmap
+import asyncio
+from agent_remote_desktop import start_remote_desktop_service
 
 # ======================
 # Load config
@@ -321,6 +323,32 @@ def main_loop():
 
         time.sleep(HEARTBEAT_INTERVAL)
 
+async def main_async():
+    """Main async function to run both services"""
+    # Start remote desktop service as a background task
+    remote_desktop_task = asyncio.create_task(
+        start_remote_desktop_service(AGENT_ID, "ws://0.0.0.0:5000")
+    )
+    
+    # Run the main loop in a separate thread since it's synchronous
+    import threading
+    main_thread = threading.Thread(target=main_loop, daemon=True)
+    main_thread.start()
+    
+    # Keep the async event loop running
+    try:
+        await remote_desktop_task
+    except KeyboardInterrupt:
+        print("[Info] Shutting down services...")
+
 if __name__ == "__main__":
-    print("[Info] Starting ITSMAgent service...")
-    main_loop()
+    print("[Info] Starting ITSMAgent service with Remote Desktop...")
+    # Check if we're already in an event loop
+    try:
+        loop = asyncio.get_running_loop()
+        # If we're in a loop, create a task
+        asyncio.create_task(start_remote_desktop_service(AGENT_ID, "ws://0.0.0.0:5000"))
+        main_loop()
+    except RuntimeError:
+        # No event loop running, start our own
+        asyncio.run(main_async())

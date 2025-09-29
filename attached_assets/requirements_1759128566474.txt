@@ -6,3 +6,6 @@ pywin32
 python-nmap
 psycopg2-binary
 jsonschema
+websockets
+pillow
+pyautogui

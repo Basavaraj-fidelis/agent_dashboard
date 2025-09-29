@@ -116,6 +116,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         collectedAt: new Date()
       });
 
+      // Process USB device changes if USB data is present (check multiple possible paths)
+      const usbDevices = 
+        reportData?.system_info?.USBDevices ||
+        reportData?.system_info?.USBStorageDevices ||
+        reportData?.USBStorageDevices ||
+        reportData?.USBDevices ||
+        reportData?.usb_devices ||
+        reportData?.usbDevices;
+
+      if (usbDevices && Array.isArray(usbDevices) && usbDevices.length > 0) {
+        try {
+          await storage.processUsbDeviceChanges(agentId, usbDevices);
+          console.log(`[DEBUG] Successfully processed USB device changes for agent ${agentId}, found ${usbDevices.length} devices`);
+        } catch (usbError) {
+          console.error(`[ERROR] Failed to process USB device changes for agent ${agentId}:`, usbError);
+        }
+      }
+
       console.log(`[DEBUG] Successfully stored full system report for agent ${agentId}`);
       res.json({ success: true, message: "Report received" });
     } catch (error) {
@@ -249,6 +267,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error fetching latest report:', error);
       res.status(500).json({ error: 'Failed to fetch latest report' });
+    }
+  });
+
+  // Get USB connection history for a specific agent
+  app.get('/api/agents/:agentId/usb-history', async (req, res) => {
+    try {
+      const { agentId } = req.params;
+      console.log(`[DEBUG] Fetching USB connection history for agent ${agentId}`);
+
+      const usbHistory = await storage.getUsbConnectionHistory(agentId);
+      
+      // Format the response for better readability
+      const formattedHistory = usbHistory.map(record => ({
+        id: record.id,
+        deviceId: record.deviceId,
+        deviceModel: record.deviceModel,
+        sizeGb: record.sizeGb,
+        status: record.status,
+        connectedAt: record.connectedAt.toISOString(),
+        disconnectedAt: record.disconnectedAt ? record.disconnectedAt.toISOString() : null,
+        duration: record.disconnectedAt 
+          ? Math.round((record.disconnectedAt.getTime() - record.connectedAt.getTime()) / 1000 / 60) + ' minutes'
+          : 'Still connected'
+      }));
+
+      res.json({
+        agentId,
+        history: formattedHistory,
+        totalRecords: formattedHistory.length
+      });
+    } catch (error) {
+      console.error('Error fetching USB history:', error);
+      res.status(500).json({ error: 'Failed to fetch USB connection history' });
     }
   });
 

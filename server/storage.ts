@@ -1,9 +1,9 @@
 
-import { type User, type InsertUser, type Agent, type InsertAgent, type HeartbeatCurrent, type InsertHeartbeat, type AgentReport, type InsertReport } from "@shared/schema";
+import { type User, type InsertUser, type Agent, type InsertAgent, type HeartbeatCurrent, type InsertHeartbeat, type AgentReport, type InsertReport, type UsbConnectionHistory, type InsertUsbHistory } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
-import { users, agents, heartbeatCurrent, heartbeatHistory, agentReports } from "@shared/schema";
-import { eq, desc } from "drizzle-orm";
+import { users, agents, heartbeatCurrent, heartbeatHistory, agentReports, usbConnectionHistory } from "@shared/schema";
+import { eq, desc, and, isNull } from "drizzle-orm";
 
 export interface IStorage {
   // User methods
@@ -24,6 +24,13 @@ export interface IStorage {
   // Report methods
   insertReport(report: InsertReport): Promise<void>;
   getLatestReport(agentId: string, reportType: string): Promise<AgentReport | undefined>;
+  
+  // USB Connection History methods
+  getConnectedUsbDevices(agentId: string): Promise<UsbConnectionHistory[]>;
+  insertUsbConnection(usbHistory: InsertUsbHistory): Promise<void>;
+  disconnectUsbDevice(agentId: string, deviceId: string): Promise<void>;
+  getUsbConnectionHistory(agentId: string): Promise<UsbConnectionHistory[]>;
+  processUsbDeviceChanges(agentId: string, currentDevices: any[]): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -129,6 +136,83 @@ export class DatabaseStorage implements IStorage {
       orderBy: (reports, { desc }) => desc(reports.collectedAt)
     });
     return result;
+  }
+
+  // USB Connection History methods
+  async getConnectedUsbDevices(agentId: string): Promise<UsbConnectionHistory[]> {
+    return await db.select()
+      .from(usbConnectionHistory)
+      .where(
+        and(
+          eq(usbConnectionHistory.agentId, agentId),
+          eq(usbConnectionHistory.status, 'connected'),
+          isNull(usbConnectionHistory.disconnectedAt)
+        )
+      );
+  }
+
+  async insertUsbConnection(usbHistory: InsertUsbHistory): Promise<void> {
+    await db.insert(usbConnectionHistory).values(usbHistory);
+  }
+
+  async disconnectUsbDevice(agentId: string, deviceId: string): Promise<void> {
+    await db.update(usbConnectionHistory)
+      .set({ 
+        status: 'disconnected',
+        disconnectedAt: new Date()
+      })
+      .where(
+        and(
+          eq(usbConnectionHistory.agentId, agentId),
+          eq(usbConnectionHistory.deviceId, deviceId),
+          eq(usbConnectionHistory.status, 'connected'),
+          isNull(usbConnectionHistory.disconnectedAt)
+        )
+      );
+  }
+
+  async getUsbConnectionHistory(agentId: string): Promise<UsbConnectionHistory[]> {
+    return await db.select()
+      .from(usbConnectionHistory)
+      .where(eq(usbConnectionHistory.agentId, agentId))
+      .orderBy(desc(usbConnectionHistory.connectedAt));
+  }
+
+  async processUsbDeviceChanges(agentId: string, currentDevices: any[]): Promise<void> {
+    const connectedDevices = await this.getConnectedUsbDevices(agentId);
+    const now = new Date();
+
+    // Create a map of currently connected devices for quick lookup
+    const currentDeviceMap = new Map(
+      currentDevices.map(device => [device.DeviceID, device])
+    );
+
+    // Create a map of previously connected devices for quick lookup
+    const connectedDeviceMap = new Map(
+      connectedDevices.map(device => [device.deviceId, device])
+    );
+
+    // Handle new USB devices (appeared in current but not in previous)
+    for (const device of currentDevices) {
+      if (!connectedDeviceMap.has(device.DeviceID)) {
+        await this.insertUsbConnection({
+          agentId,
+          deviceId: device.DeviceID,
+          deviceModel: device.Model || 'Unknown USB Device',
+          sizeGb: device.SizeGB?.toString() || null,
+          status: 'connected',
+          connectedAt: now,
+          disconnectedAt: null
+        });
+      }
+    }
+
+    // Handle disconnected USB devices (missing in current but existed before & still marked connected)
+    for (const connectedDevice of connectedDevices) {
+      if (!currentDeviceMap.has(connectedDevice.deviceId)) {
+        await this.disconnectUsbDevice(agentId, connectedDevice.deviceId);
+      }
+    }
   }
 }
 

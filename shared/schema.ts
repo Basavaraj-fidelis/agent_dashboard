@@ -44,6 +44,17 @@ export const agentReports = pgTable("agent_reports", {
   collectedAt: timestamp("collected_at").notNull(),
 });
 
+export const usbConnectionHistory = pgTable("usb_connection_history", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  agentId: varchar("agent_id").notNull().references(() => agents.agentId),
+  deviceId: text("device_id").notNull(), // DeviceID from USB device
+  deviceModel: text("device_model").notNull(), // Model name
+  sizeGb: text("size_gb"), // Size in GB
+  status: text("status").notNull(), // 'connected' or 'disconnected'
+  connectedAt: timestamp("connected_at").notNull(),
+  disconnectedAt: timestamp("disconnected_at"), // NULL if still connected
+});
+
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
@@ -52,6 +63,7 @@ export const insertUserSchema = createInsertSchema(users).pick({
 export const insertAgentSchema = createInsertSchema(agents);
 export const insertHeartbeatSchema = createInsertSchema(heartbeatCurrent);
 export const insertReportSchema = createInsertSchema(agentReports);
+export const insertUsbHistorySchema = createInsertSchema(usbConnectionHistory);
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -61,3 +73,5 @@ export type HeartbeatCurrent = typeof heartbeatCurrent.$inferSelect;
 export type InsertHeartbeat = z.infer<typeof insertHeartbeatSchema>;
 export type AgentReport = typeof agentReports.$inferSelect;
 export type InsertReport = z.infer<typeof insertReportSchema>;
+export type UsbConnectionHistory = typeof usbConnectionHistory.$inferSelect;
+export type InsertUsbHistory = z.infer<typeof insertUsbHistorySchema>;

@@ -190,7 +190,6 @@ export default function DeviceDetailView({ device, onBack, isLoading }: DeviceDe
   const networkInfo = extractData(reportData, 'system_info.NetworkInfo', 'NetworkInfo', 'network_info', 'networkInfo');
   const windowsSecurity = extractData(reportData, 'windows_security', 'WindowsSecurity', 'windowsSecurity');
   const installedApps = extractData(reportData, 'installed_apps.installed_apps', 'installed_apps', 'InstalledApps', 'installedApps');
-  const usbDevices = extractData(reportData, 'system_info.USBDevices', 'USBDevices', 'system_info.USBStorageDevices', 'USBStorageDevices', 'usb_devices', 'usbDevices');
 
 
   return (
@@ -369,7 +368,7 @@ export default function DeviceDetailView({ device, onBack, isLoading }: DeviceDe
               </div>
 
               {/* USB Devices Section */}
-              <UsbDevices usbDevices={Array.isArray(usbDevices) ? usbDevices : []} />
+              <UsbDevices agentId={device.agentId} />
             </>
           )}
         </TabsContent>

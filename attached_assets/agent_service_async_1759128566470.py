@@ -52,6 +52,12 @@ def ensure_agent_registered(conn, agent_id, hostname, os_name, location, usernam
     Ensure the agent row exists in the database and update all fields
     to reflect current system info.
     """
+    # Ensure no null values for required fields
+    hostname = hostname or socket.gethostname()
+    os_name = os_name or platform.system()
+    location = location or "Unknown"
+    username = username or getpass.getuser()
+    
     with conn.cursor() as cur:
         cur.execute("""
             INSERT INTO agents (agent_id, hostname, os, location, last_heartbeat, username)
@@ -107,19 +113,23 @@ def insert_full_report(agent_id, report_json):
 # ======================
 def build_heartbeat_payload():
     system_info = generate_report(json_output=False)
-    network_info = system_info.get("network_info", {})
+    
+    # Extract data from the nested structure returned by generate_report
+    system_data = system_info.get("SystemInfo", {})
+    network_data = system_info.get("NetworkInfo", {})
+    
     return {
         "agentId": AGENT_ID,
-        "deviceName": system_info.get("device_name"),
+        "deviceName": system_data.get("deviceName", socket.gethostname()),
         "username": getpass.getuser(),
-        "os": system_info.get("os"),
-        "edition": system_info.get("edition"),
-        "cpu": system_info.get("cpu"),
-        "ram": system_info.get("ram"),
-        "graphics": system_info.get("graphics"),
-        "localIp": network_info.get("local_ip", "127.0.0.1"),
-        "publicIp": network_info.get("public_ip", "0.0.0.0"),
-        "location": network_info.get("location", "Unknown"),
+        "os": system_data.get("os", platform.system()),
+        "edition": system_data.get("edition", "Unknown"),
+        "cpu": system_data.get("cpu", "Unknown"),
+        "ram": system_data.get("ram", "Unknown"),
+        "graphics": system_data.get("graphics", "Unknown"),
+        "localIp": network_data.get("local_ip", "127.0.0.1"),
+        "publicIp": network_data.get("public_ip", "0.0.0.0"),
+        "location": network_data.get("location", "Unknown"),
         "collectedAt": datetime.datetime.utcnow().isoformat()
     }
 

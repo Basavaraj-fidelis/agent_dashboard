@@ -263,7 +263,7 @@ export default function DeviceDetailView({ device, onBack, isLoading }: DeviceDe
               <HardDrive className="w-8 h-8 text-muted-foreground" />
               <div>
                 <p className="text-sm text-muted-foreground">Storage</p>
-                <p className="font-semibold text-sm">{systemInfo?.totalDisk || 'N/A'}</p>
+                <p className="font-semibold text-sm">{systemInfo?.totalDisk || systemInfo?.total_disk || 'N/A'}</p>
               </div>
             </div>
           </CardContent>
@@ -351,7 +351,7 @@ export default function DeviceDetailView({ device, onBack, isLoading }: DeviceDe
                         </div>
                         <div className="grid grid-cols-3 gap-2 text-sm">
                           <span className="font-medium">Total Disk:</span>
-                          <span className="col-span-2">{systemInfo.totalDisk || systemInfo.total_disk || 'N/A'}</span>
+                          <span className="col-span-2">{systemInfo.total_disk || systemInfo.totalDisk || 'N/A'}</span>
                         </div>
                       </>
                     ) : (

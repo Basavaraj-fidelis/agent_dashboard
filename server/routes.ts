@@ -132,17 +132,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { agentId } = req.params;
 
-      const result = await db.select()
-        .from(agentReports)
-        .where(eq(agentReports.agentId, agentId))
-        .orderBy(desc(agentReports.collectedAt))
-        .limit(1);
+      const report = await storage.getLatestReport(agentId, "full_system_report");
 
-      if (result.length === 0) {
+      if (!report) {
         return res.status(404).json({ error: 'No reports found for this agent' });
       }
 
-      const report = result[0];
       res.json(report.reportData);
     } catch (error) {
       console.error('Error fetching latest report:', error);

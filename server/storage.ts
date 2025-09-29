@@ -2,7 +2,7 @@
 import { type User, type InsertUser, type Agent, type InsertAgent, type HeartbeatCurrent, type InsertHeartbeat, type AgentReport, type InsertReport } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
-import { agents, heartbeatCurrent, heartbeatHistory, agentReports } from "@shared/schema";
+import { users, agents, heartbeatCurrent, heartbeatHistory, agentReports } from "@shared/schema";
 import { eq, desc } from "drizzle-orm";
 
 export interface IStorage {
@@ -43,7 +43,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db.insert(db.schema.users).values(insertUser).returning();
+    const [user] = await db.insert(users).values(insertUser).returning();
     return user;
   }
 

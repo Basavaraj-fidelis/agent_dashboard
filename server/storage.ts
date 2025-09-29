@@ -178,6 +178,59 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(usbConnectionHistory.connectedAt));
   }
 
+  async getEnhancedDiskInformation(agentId: string): Promise<{
+    diskInfo: any[];
+    reportSource: string;
+    reportAge: number;
+    usbSummary: { connectedDevices: number; totalUsbHistory: number };
+    lastUpdated: Date | null;
+  }> {
+    // Get the most recent report with disk information
+    const fullReport = await this.getLatestReport(agentId, "full_system_report");
+    const heartbeatReport = await this.getLatestReport(agentId, "system_info_heartbeat");
+
+    let diskInfo: any[] = [];
+    let reportSource = "";
+    let lastUpdated: Date | null = null;
+
+    if (fullReport?.reportData) {
+      const reportData = fullReport.reportData as any;
+      diskInfo = reportData?.system_info?.DiskInfo || 
+                 reportData?.DiskInfo || 
+                 reportData?.disk_info || [];
+      reportSource = "full_system_report";
+      lastUpdated = fullReport.collectedAt;
+    } else if (heartbeatReport?.reportData) {
+      const reportData = heartbeatReport.reportData as any;
+      diskInfo = reportData?.system_info?.DiskInfo || 
+                 reportData?.DiskInfo || 
+                 reportData?.disk_info || [];
+      reportSource = "heartbeat_report";
+      lastUpdated = heartbeatReport.collectedAt;
+    }
+
+    // Get USB connection context
+    const usbHistory = await this.getUsbConnectionHistory(agentId);
+    const connectedUsbDevices = usbHistory.filter(record => 
+      record.status === 'connected' && !record.disconnectedAt
+    );
+
+    const reportAge = lastUpdated 
+      ? Math.round((Date.now() - lastUpdated.getTime()) / 1000 / 60)
+      : 0;
+
+    return {
+      diskInfo,
+      reportSource,
+      reportAge,
+      usbSummary: {
+        connectedDevices: connectedUsbDevices.length,
+        totalUsbHistory: usbHistory.length
+      },
+      lastUpdated
+    };
+  }
+
   async processUsbDeviceChanges(agentId: string, currentDevices: any[]): Promise<void> {
     const now = new Date();
     const hasUsbConnected = currentDevices && currentDevices.length > 0;

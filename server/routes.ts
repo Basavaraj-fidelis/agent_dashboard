@@ -315,6 +315,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get current disk information with USB context
+  app.get('/api/agents/:agentId/disk-info', async (req, res) => {
+    try {
+      const { agentId } = req.params;
+      console.log(`[DEBUG] Fetching disk information for agent ${agentId}`);
+
+      // Get the latest report that contains disk information
+      const fullReport = await storage.getLatestReport(agentId, "full_system_report");
+      const heartbeatReport = await storage.getLatestReport(agentId, "system_info_heartbeat");
+
+      let diskInfo = [];
+      let reportSource = null;
+      let reportAge = null;
+
+      // Try to get disk info from the most recent report
+      if (fullReport?.reportData) {
+        const reportData = fullReport.reportData as any;
+        diskInfo = reportData?.system_info?.DiskInfo || 
+                   reportData?.DiskInfo || 
+                   reportData?.disk_info || [];
+        reportSource = "full_system_report";
+        reportAge = Math.round((Date.now() - new Date(fullReport.collectedAt).getTime()) / 1000 / 60);
+      } else if (heartbeatReport?.reportData) {
+        const reportData = heartbeatReport.reportData as any;
+        diskInfo = reportData?.system_info?.DiskInfo || 
+                   reportData?.DiskInfo || 
+                   reportData?.disk_info || [];
+        reportSource = "heartbeat_report";
+        reportAge = Math.round((Date.now() - new Date(heartbeatReport.collectedAt).getTime()) / 1000 / 60);
+      }
+
+      // Get USB connection history to provide context
+      const usbHistory = await storage.getUsbConnectionHistory(agentId);
+      const connectedUsbDevices = usbHistory.filter(record => 
+        record.status === 'connected' && !record.disconnectedAt
+      );
+
+      // Enhance disk info with USB context
+      const enhancedDiskInfo = diskInfo.map((disk: any) => {
+        const deviceName = disk.Device || disk.device || disk.Mountpoint || '';
+        let diskType = 'system';
+        let usbContext = null;
+
+        // Identify potential USB drives (typically D:, E:, F:, etc. but not C:)
+        if (deviceName.match(/^[D-Z]:/i)) {
+          diskType = 'removable';
+          // Check if there are connected USB devices that might correspond to this drive
+          if (connectedUsbDevices.length > 0) {
+            usbContext = {
+              hasConnectedUsb: true,
+              connectedDevices: connectedUsbDevices.length,
+              likelyUsbDrive: true
+            };
+          } else {
+            usbContext = {
+              hasConnectedUsb: false,
+              connectedDevices: 0,
+              likelyUsbDrive: false
+            };
+          }
+        }
+
+        return {
+          ...disk,
+          diskType,
+          usbContext
+        };
+      });
+
+      res.json({
+        agentId,
+        diskInfo: enhancedDiskInfo,
+        reportSource,
+        reportAge,
+        usbSummary: {
+          connectedDevices: connectedUsbDevices.length,
+          totalUsbHistory: usbHistory.length
+        },
+        lastUpdated: fullReport?.collectedAt || heartbeatReport?.collectedAt || null
+      });
+    } catch (error) {
+      console.error('Error fetching disk information:', error);
+      res.status(500).json({ error: 'Failed to fetch disk information' });
+    }
+  });
+
   // Debug endpoint to inspect database contents
   app.get('/api/debug/agents/:agentId/reports', async (req, res) => {
     try {

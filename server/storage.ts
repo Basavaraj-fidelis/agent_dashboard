@@ -179,47 +179,65 @@ export class DatabaseStorage implements IStorage {
   }
 
   async processUsbDeviceChanges(agentId: string, currentDevices: any[]): Promise<void> {
-    const connectedDevices = await this.getConnectedUsbDevices(agentId);
     const now = new Date();
+    const hasUsbConnected = currentDevices && currentDevices.length > 0;
 
-    console.log(`[DEBUG] Processing USB changes for ${agentId}: Current=${currentDevices.length} devices, Previously connected=${connectedDevices.length} devices`);
+    console.log(`[DEBUG] Processing USB state for ${agentId}: Current state=${hasUsbConnected ? 'USB Connected' : 'No USB'} (${currentDevices.length} devices)`);
 
-    // Create a map of currently connected devices for quick lookup
-    const currentDeviceMap = new Map(
-      currentDevices.map(device => [device.DeviceID || device.deviceId, device])
-    );
+    // Get the most recent USB connection record for this agent
+    const lastRecord = await db.select()
+      .from(usbConnectionHistory)
+      .where(eq(usbConnectionHistory.agentId, agentId))
+      .orderBy(desc(usbConnectionHistory.connectedAt))
+      .limit(1);
 
-    // Create a map of previously connected devices for quick lookup
-    const connectedDeviceMap = new Map(
-      connectedDevices.map(device => [device.deviceId, device])
-    );
+    const previousState = lastRecord.length > 0 && lastRecord[0].status === 'connected' && !lastRecord[0].disconnectedAt;
 
-    // Handle new USB devices (appeared in current but not in previous)
-    for (const device of currentDevices) {
-      const deviceId = device.DeviceID || device.deviceId;
-      if (!connectedDeviceMap.has(deviceId)) {
-        console.log(`[DEBUG] New USB device detected: ${deviceId} - ${device.Model || 'Unknown'}`);
+    console.log(`[DEBUG] Previous state: ${previousState ? 'USB Connected' : 'No USB'}`);
+
+    // Apply the proposed logic
+    if (hasUsbConnected) {
+      // Current heartbeat = "USB Connected"
+      if (!previousState) {
+        // Previous state was "No USB" → Insert new record
+        console.log(`[DEBUG] State change: No USB → USB Connected - Inserting new connection record`);
         await this.insertUsbConnection({
           agentId,
-          deviceId,
-          deviceModel: device.Model || 'Unknown USB Device',
-          sizeGb: device.SizeGB?.toString() || device.sizeGb?.toString() || null,
+          deviceId: `USB_SESSION_${Date.now()}`, // Use session-based ID since we're not tracking individual devices
+          deviceModel: `USB Storage (${currentDevices.length} device${currentDevices.length > 1 ? 's' : ''})`,
+          sizeGb: null,
           status: 'connected',
           connectedAt: now,
           disconnectedAt: null
         });
+      } else {
+        // Previous state also "USB Connected" → do nothing
+        console.log(`[DEBUG] State unchanged: USB Connected → USB Connected - No action needed`);
+      }
+    } else {
+      // Current heartbeat = "No USB"
+      if (previousState) {
+        // Previous state was "USB Connected" → Update last record with disconnected_at
+        console.log(`[DEBUG] State change: USB Connected → No USB - Marking as disconnected`);
+        await db.update(usbConnectionHistory)
+          .set({ 
+            status: 'disconnected',
+            disconnectedAt: now
+          })
+          .where(
+            and(
+              eq(usbConnectionHistory.agentId, agentId),
+              eq(usbConnectionHistory.status, 'connected'),
+              isNull(usbConnectionHistory.disconnectedAt)
+            )
+          );
+      } else {
+        // Previous state already "No USB" → do nothing
+        console.log(`[DEBUG] State unchanged: No USB → No USB - No action needed`);
       }
     }
 
-    // Handle disconnected USB devices (missing in current but existed before & still marked connected)
-    for (const connectedDevice of connectedDevices) {
-      if (!currentDeviceMap.has(connectedDevice.deviceId)) {
-        console.log(`[DEBUG] USB device disconnected: ${connectedDevice.deviceId} - ${connectedDevice.deviceModel}`);
-        await this.disconnectUsbDevice(agentId, connectedDevice.deviceId);
-      }
-    }
-
-    console.log(`[DEBUG] USB change processing completed for ${agentId}`);
+    console.log(`[DEBUG] USB state processing completed for ${agentId}`);
   }
 }
 

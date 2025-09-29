@@ -1,4 +1,5 @@
 import DeviceList from "@/components/DeviceList";
+import { useState, useEffect } from "react";
 
 interface Device {
   agentId: string;
@@ -11,57 +12,54 @@ interface Device {
 }
 
 export default function Dashboard() {
-  //todo: remove mock functionality
-  const mockDevices: Device[] = [
-    {
-      agentId: "AGENT005",
-      hostname: "DESKTOP-CMM8H3C",
-      os: "Windows 11 Home Single Language",
-      location: "Bengaluru - Karnataka - India",
-      username: "basav",
-      lastHeartbeat: new Date(Date.now() - 300000).toISOString(),
-      status: "online"
-    },
-    {
-      agentId: "AGENT003", 
-      hostname: "WORKSTATION-01",
-      os: "Windows 11 Pro",
-      location: "New York - NY - USA",
-      username: "john.doe",
-      lastHeartbeat: new Date(Date.now() - 1800000).toISOString(),
-      status: "warning"
-    },
-    {
-      agentId: "AGENT001",
-      hostname: "LAPTOP-DEV",
-      os: "Windows 10 Enterprise",
-      location: "London - England - UK", 
-      username: "jane.smith",
-      lastHeartbeat: new Date(Date.now() - 7200000).toISOString(),
-      status: "offline"
-    },
-    {
-      agentId: "AGENT007",
-      hostname: "SERVER-PROD-01",
-      os: "Windows Server 2022",
-      location: "Tokyo - Tokyo - Japan",
-      username: "admin.server",
-      lastHeartbeat: new Date(Date.now() - 60000).toISOString(),
-      status: "online"
-    }
-  ];
+  const [devices, setDevices] = useState<Device[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
+  useEffect(() => {
+    const fetchDevices = async () => {
+      try {
+        const response = await fetch('/api/agents'); // Assuming your API endpoint is /api/agents
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data: Device[] = await response.json();
+        setDevices(data);
+      } catch (error) {
+        console.error("Failed to fetch devices:", error);
+        // Handle error appropriately, maybe set an error state
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
+    fetchDevices();
+  }, []);
 
   const handleRefresh = () => {
     console.log('Refreshing device data...');
-    // In real app, this would fetch fresh data from the API
+    setIsLoading(true); // Set loading to true on refresh
+    const fetchDevices = async () => {
+      try {
+        const response = await fetch('/api/agents'); // Assuming your API endpoint is /api/agents
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data: Device[] = await response.json();
+        setDevices(data);
+      } catch (error) {
+        console.error("Failed to fetch devices:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchDevices();
   };
 
   return (
-    <DeviceList 
-      devices={mockDevices}
+    <DeviceList
+      devices={devices}
       onRefresh={handleRefresh}
+      isLoading={isLoading}
     />
   );
 }

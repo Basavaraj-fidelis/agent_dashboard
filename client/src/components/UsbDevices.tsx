@@ -15,8 +15,8 @@ interface UsbDevicesProps {
 }
 
 export default function UsbDevices({ usbDevices }: UsbDevicesProps) {
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
+  const getStatusColor = (status?: string) => {
+    switch ((status ?? '').toLowerCase()) {
       case 'ok':
       case 'ready':
         return "default";

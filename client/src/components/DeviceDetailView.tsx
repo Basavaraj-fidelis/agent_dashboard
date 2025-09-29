@@ -154,8 +154,6 @@ export default function DeviceDetailView({ device, onBack, isLoading }: DeviceDe
         throw new Error('Failed to fetch report');
       }
       const data = await response.json();
-      console.log('[DEBUG] Frontend received report data:', data);
-      console.log('[DEBUG] Report data keys:', Object.keys(data || {}));
       return data;
     },
     enabled: !!device.agentId,
@@ -192,19 +190,7 @@ export default function DeviceDetailView({ device, onBack, isLoading }: DeviceDe
   const networkInfo = extractData(reportData, 'system_info.NetworkInfo', 'NetworkInfo', 'network_info', 'networkInfo');
   const windowsSecurity = extractData(reportData, 'windows_security', 'WindowsSecurity', 'windowsSecurity');
   const installedApps = extractData(reportData, 'installed_apps.installed_apps', 'installed_apps', 'InstalledApps', 'installedApps');
-  const usbDevices = extractData(reportData, 'system_info.USBStorageDevices', 'USBStorageDevices', 'usb_devices', 'usbDevices');
-  
-  console.log('[DEBUG] USB Devices from report:', usbDevices);
-
-  console.log('[DEBUG] Extracted data:', {
-    systemInfo: !!systemInfo,
-    diskInfo: !!diskInfo,
-    topProcesses: !!topProcesses,
-    networkInfo: !!networkInfo,
-    windowsSecurity: !!windowsSecurity,
-    installedApps: !!installedApps,
-    usbDevices: !!usbDevices
-  });
+  const usbDevices = extractData(reportData, 'system_info.USBDevices', 'USBDevices', 'system_info.USBStorageDevices', 'USBStorageDevices', 'usb_devices', 'usbDevices');
 
 
   return (

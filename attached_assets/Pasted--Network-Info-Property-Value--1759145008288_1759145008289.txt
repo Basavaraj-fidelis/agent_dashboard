@@ -1,0 +1,50 @@
+=== Network Info ===
++------------+-------------------------------+
+| Property   | Value                         |
++============+===============================+
+| Local IP   | 192.168.1.80                  |
++------------+-------------------------------+
+| Public IP  | 139.167.219.110               |
++------------+-------------------------------+
+| Location   | Bengaluru - Karnataka - India |
++------------+-------------------------------+
+| Flag URL   |                               |
++------------+-------------------------------+
+
+=== NIC Details ===
++--------------------------------------+-------------------+-------------------+----------------------------------------+
+| Description                          | MAC               | Connection Type   | IP Addresses                           |
++======================================+===================+===================+========================================+
+| Realtek Gaming GbE Family Controller | 84:69:93:6F:43:04 | LAN               | 192.168.1.80, fe80::ba77:9754:bc7:6e3b |
++--------------------------------------+-------------------+-------------------+----------------------------------------+
+
+=== Disk Partitions & Usage ===
++----------+--------------+------+-----------+-----------+-----------+-----------+
+| Device   | Mountpoint   | FS   | Total     | Used      | Free      | Usage %   |
++==========+==============+======+===========+===========+===========+===========+
+| C:\      | C:\          | NTFS | 389.79 GB | 232.18 GB | 157.61 GB | 59.6 %    |
++----------+--------------+------+-----------+-----------+-----------+-----------+
+| E:\      | E:\          | NTFS | 86.31 GB  | 21.10 GB  | 65.22 GB  | 24.4 %    |
++----------+--------------+------+-----------+-----------+-----------+-----------+
+
+=== USB Storage Devices ===
+No USB storage devices found.
+
+[DEBUG] Sending heartbeat to: https://0c91a687-335d-48b1-b6b2-67b9951f6372-00-2wfb7e3pmmlgd.worf.replit.dev/api/agents/AGENT001/heartbeat
+[DEBUG] Heartbeat data: {
+  "agentId": "AGENT001",
+  "deviceName": "DESKTOP-CMM8H3C",
+  "username": "basav",
+  "os": "Microsoft Windows 11 Home Single Language (10.0.26100)",
+  "edition": "Home Single Language",
+  "cpu": "AMD Ryzen 5 5600H with Radeon Graphics          (6 cores / 12 threads, 3301 MHz)",
+  "ram": "7.35 GB",
+  "graphics": "AMD Radeon(TM) Graphics, Radeon RX 5500M",
+  "localIp": "192.168.1.80",
+  "publicIp": "139.167.219.110",
+  "location": "Bengaluru - Karnataka - India ",
+  "collectedAt": "2025-09-29T11:18:10.329765"
+}
+[Info] Heartbeat sent successfully at 2025-09-29 16:48:11.820569
+[Info] Heartbeat data saved to database
+[Warning] Expected list of commands, got <class 'dict'>: {'commands': []}

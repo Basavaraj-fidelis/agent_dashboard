@@ -32,7 +32,8 @@ ITSM_REPORT_URL = config.get("ITSM", "FULL_REPORT_URL").replace('{AGENT_ID}', AG
 ITSM_COMMANDS_URL = config.get("ITSM", "COMMANDS_URL").replace('{AGENT_ID}', AGENT_ID)
 ITSM_RESULTS_URL = config.get("ITSM", "RESULTS_URL").replace('{AGENT_ID}', AGENT_ID)
 
-DB_URL = config.get("Database", "DB_URL")
+# Use environment variable for database URL (same as the main app)
+DB_URL = os.environ.get("DATABASE_URL", config.get("Database", "DB_URL", fallback=""))
 
 # ======================
 # Globals
@@ -94,9 +95,9 @@ def insert_full_report(agent_id, report_json):
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute("""
-        INSERT INTO full_report_log(agent_id, report_json, collected_at)
-        VALUES (%s, %s, NOW())
-    """, (agent_id, json.dumps(report_json)))
+        INSERT INTO agent_reports(agent_id, report_type, report_data, collected_at)
+        VALUES (%s, %s, %s, NOW())
+    """, (agent_id, "full_system_report", json.dumps(report_json)))
     conn.commit()
     cur.close()
     conn.close()

@@ -286,11 +286,11 @@ export default function DeviceDetailView({ device, onBack, isLoading }: DeviceDe
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
-          <TabsTrigger value="processes" data-testid="tab-processes">Processes</TabsTrigger>
-          <TabsTrigger value="security" data-testid="tab-security">Security</TabsTrigger>
-          <TabsTrigger value="network" data-testid="tab-network">Network</TabsTrigger>
-          <TabsTrigger value="applications" data-testid="tab-applications">Apps</TabsTrigger>
           <TabsTrigger value="storage" data-testid="tab-storage">Storage</TabsTrigger>
+          <TabsTrigger value="network" data-testid="tab-network">Network</TabsTrigger>
+          <TabsTrigger value="security" data-testid="tab-security">Security</TabsTrigger>
+          <TabsTrigger value="processes" data-testid="tab-processes">Processes</TabsTrigger>
+          <TabsTrigger value="applications" data-testid="tab-applications">Apps</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
@@ -334,6 +334,10 @@ export default function DeviceDetailView({ device, onBack, isLoading }: DeviceDe
                     {systemInfo ? (
                       <>
                         <div className="grid grid-cols-3 gap-2 text-sm">
+                          <span className="font-medium">Logged-in User:</span>
+                          <span className="col-span-2">{device.username}</span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 text-sm">
                           <span className="font-medium">CPU:</span>
                           <span className="col-span-2">{systemInfo.cpu}</span>
                         </div>
@@ -351,27 +355,18 @@ export default function DeviceDetailView({ device, onBack, isLoading }: DeviceDe
                         </div>
                       </>
                     ) : (
-                      <p className="text-muted-foreground text-sm">System information not available</p>
+                      <>
+                        <div className="grid grid-cols-3 gap-2 text-sm">
+                          <span className="font-medium">Logged-in User:</span>
+                          <span className="col-span-2">{device.username}</span>
+                        </div>
+                        <p className="text-muted-foreground text-sm">Other system information not available</p>
+                      </>
                     )}
                   </CardContent>
                 </Card>
 
                 <DiskInfo diskData={diskInfo || []} />
-              </div>
-
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                <ProcessTable
-                  processes={topProcesses?.top_cpu || []}
-                  title="Top CPU Processes"
-                  type="cpu"
-                  systemUsage={{ cpu: 15.4, memory: 65.2 }}
-                />
-                <ProcessTable
-                  processes={topProcesses?.top_memory || []}
-                  title="Top Memory Processes"
-                  type="memory"
-                  systemUsage={{ memory: 65.2, totalRam: systemInfo?.ram || "Unknown" }}
-                />
               </div>
             </>
           )}

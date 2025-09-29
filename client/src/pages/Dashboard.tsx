@@ -18,8 +18,10 @@ interface Device {
     local_ip?: string;
   };
   usbDevices?: {
-    name: string;
-    status: string;
+    DeviceID: string;
+    Model: string;
+    SizeGB: string | number;
+    Status: string;
   }[];
 }
 
@@ -333,16 +335,16 @@ export default function Dashboard() {
                 <div key={index} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors">
                   <div className="flex items-center gap-3">
                     <div className={`w-3 h-3 rounded-full ${
-                      usb.status === 'connected' ? 'bg-green-500' :
-                      usb.status === 'disconnected' ? 'bg-red-500' : 'bg-yellow-500'
+                      usb.Status?.toLowerCase() === 'ok' ? 'bg-green-500' :
+                      usb.Status?.toLowerCase() === 'error' ? 'bg-red-500' : 'bg-yellow-500'
                     }`} />
                     <div>
-                      <p className="font-medium text-sm">{usb.name}</p>
-                      <p className="text-xs text-muted-foreground">{usb.hostname}</p>
+                      <p className="font-medium text-sm">{usb.Model || 'Unknown USB Device'}</p>
+                      <p className="text-xs text-muted-foreground">{usb.hostname} • {usb.SizeGB ? `${usb.SizeGB} GB` : 'Unknown size'}</p>
                     </div>
                   </div>
-                  <Badge variant={usb.status === "connected" ? "default" : usb.status === "warning" ? "secondary" : "destructive"}>
-                    {usb.status}
+                  <Badge variant={usb.Status?.toLowerCase() === "ok" ? "default" : usb.Status?.toLowerCase() === "error" ? "destructive" : "secondary"}>
+                    {usb.Status || 'Unknown'}
                   </Badge>
                 </div>
               ))}

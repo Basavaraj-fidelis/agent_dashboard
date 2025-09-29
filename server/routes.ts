@@ -1,6 +1,25 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { eq, desc } from "drizzle-orm";
+import { agents, heartbeatCurrent, agentReports } from "../shared/schema";
+import { db } from "../shared/db"; // Assuming db is exported from shared/db
+
+// Helper function to determine agent status
+function getAgentStatus(lastHeartbeat: Date): "online" | "warning" | "offline" {
+  const lastHeartbeatTime = new Date(lastHeartbeat).getTime();
+  const now = new Date().getTime();
+  const timeDiffMinutes = (now - lastHeartbeatTime) / (1000 * 60);
+
+  if (timeDiffMinutes <= 10) {
+    return "online";
+  } else if (timeDiffMinutes <= 30) {
+    return "warning";
+  } else {
+    return "offline";
+  }
+}
+
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Agent heartbeat endpoint
@@ -38,7 +57,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           system_info: {
             SystemInfo: {
               cpu: heartbeatData.cpu || "Unknown",
-              ram: heartbeatData.ram || "Unknown", 
+              ram: heartbeatData.ram || "Unknown",
               graphics: heartbeatData.graphics || "Unknown",
               total_disk: "Information available in full system report"
             },
@@ -108,24 +127,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all agents
   app.get("/api/agents", async (req, res) => {
     try {
-      const agents = await storage.getAllAgents();
+      const agentsList = await storage.getAllAgents();
 
       // Calculate status based on last heartbeat
-      const agentsWithStatus = agents.map(agent => {
-        const lastHeartbeat = new Date(agent.lastHeartbeat);
-        const now = new Date();
-        const timeDiff = now.getTime() - lastHeartbeat.getTime();
-        const minutesDiff = timeDiff / (1000 * 60);
-
-        let status: "online" | "warning" | "offline";
-        if (minutesDiff <= 10) {
-          status = "online";
-        } else if (minutesDiff <= 30) {
-          status = "warning";
-        } else {
-          status = "offline";
-        }
-
+      const agentsWithStatus = agentsList.map(agent => {
+        const status = getAgentStatus(agent.lastHeartbeat);
         return {
           ...agent,
           status
@@ -149,28 +155,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Agent not found" });
       }
 
-      // Use same fallback logic as latest-report endpoint
-      let latestReportData = null;
-      
-      // First try full system report
-      const fullReport = await storage.getLatestReport(agentId, "full_system_report");
-      
-      if (fullReport && fullReport.reportData && Object.keys(fullReport.reportData).length > 0) {
-        latestReportData = fullReport.reportData;
-      } else {
-        // Fall back to heartbeat-based system info
-        const heartbeatReport = await storage.getLatestReport(agentId, "system_info_heartbeat");
-        if (heartbeatReport && heartbeatReport.reportData) {
-          latestReportData = heartbeatReport.reportData;
-        }
+      // Get latest report for additional data
+      const latestReport = await db
+        .select()
+        .from(agentReports)
+        .where(eq(agentReports.agentId, agentId))
+        .orderBy(desc(agentReports.collectedAt))
+        .limit(1);
+
+      let usbDevices: any[] = [];
+      if (latestReport.length > 0) {
+        const reportData = latestReport[0].reportData as any;
+        // Try multiple possible paths for USB devices
+        usbDevices =
+          reportData?.system_info?.USBStorageDevices ||
+          reportData?.USBStorageDevices ||
+          reportData?.usb_devices ||
+          reportData?.usbDevices ||
+          [];
       }
 
       const heartbeat = await storage.getLatestHeartbeat(agentId);
 
+      const deviceData = {
+        agentId: agent.agentId,
+        hostname: agent.hostname,
+        os: agent.os,
+        location: agent.location,
+        username: agent.username,
+        lastHeartbeat: agent.lastHeartbeat.toISOString(),
+        status: getAgentStatus(agent.lastHeartbeat),
+        networkInfo: heartbeat ? {
+          local_ip: heartbeat.localIp
+        } : undefined,
+        usbDevices: Array.isArray(usbDevices) ? usbDevices : []
+      };
+
       res.json({
         ...agent,
-        latestReport: latestReportData,
-        heartbeat
+        latestReport: latestReport.length > 0 ? latestReport[0].reportData : null,
+        heartbeat,
+        usbDevices: Array.isArray(usbDevices) ? usbDevices : []
       });
     } catch (error) {
       console.error("Error fetching agent:", error);
@@ -196,12 +221,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // First try to get full system report
       const fullReport = await storage.getLatestReport(agentId, "full_system_report");
       console.log(`[DEBUG] Full system report found:`, !!fullReport);
-      
+
       if (fullReport?.reportData) {
         const reportDataKeys = Object.keys(fullReport.reportData);
         console.log(`[DEBUG] Full system report data keys:`, reportDataKeys);
         console.log(`[DEBUG] Full system report data structure:`, JSON.stringify(fullReport.reportData, null, 2));
-        
+
         if (reportDataKeys.length > 0) {
           console.log(`[DEBUG] Returning full system report for agent ${agentId}`);
           return res.json(fullReport.reportData);
@@ -211,7 +236,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // If no full report, try to get system info from heartbeat report
       const heartbeatReport = await storage.getLatestReport(agentId, "system_info_heartbeat");
       console.log(`[DEBUG] Heartbeat system report found:`, !!heartbeatReport);
-      
+
       if (heartbeatReport?.reportData) {
         console.log(`[DEBUG] Heartbeat report data keys:`, Object.keys(heartbeatReport.reportData));
         console.log(`[DEBUG] Returning heartbeat system report for agent ${agentId}`);
@@ -231,11 +256,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/debug/agents/:agentId/reports', async (req, res) => {
     try {
       const { agentId } = req.params;
-      
+
       // Get all reports for this agent
       const fullReports = await storage.getLatestReport(agentId, "full_system_report");
       const heartbeatReports = await storage.getLatestReport(agentId, "system_info_heartbeat");
-      
+
       res.json({
         agent_id: agentId,
         full_report: fullReports ? {

@@ -389,9 +389,9 @@ export default function DeviceDetailView({ device, onBack, isLoading }: DeviceDe
             </Card>
           ) : (
             <NetworkInfo
-              localIp={device.networkInfo?.local_ip}
-              publicIp={device.networkInfo?.public_ip}
-              location={device.networkInfo?.location}
+              localIp={device.networkInfo?.local_ip || "N/A"}
+              publicIp={device.networkInfo?.public_ip || "N/A"}
+              location={device.networkInfo?.location || "N/A"}
               nicDetails={device.networkInfo?.nic_details || []}
               openPorts={device.openPorts || []}
             />

@@ -21,11 +21,11 @@ interface AntivirusProduct {
 }
 
 interface SecurityOverviewProps {
-  windowsDefender: WindowsDefenderStatus;
+  windowsDefender?: WindowsDefenderStatus;
   firewall: FirewallProfile[];
-  uacStatus: string;
+  uacStatus?: string;
   installedAv: AntivirusProduct[];
-  restartPending: boolean;
+  restartPending?: boolean;
   recentPatches: Array<{
     hotfix_id: string;
     installed_on: string;
@@ -41,6 +41,9 @@ export default function SecurityOverview({
   recentPatches
 }: SecurityOverviewProps) {
   const getSecurityStatus = () => {
+    if (!windowsDefender) {
+      return "warning"; // No security data available
+    }
     if (!windowsDefender.antivirus_enabled || !windowsDefender.real_time_protection) {
       return "error";
     }
@@ -60,39 +63,49 @@ export default function SecurityOverview({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm">Antivirus Protection</span>
-            <StatusIndicator 
-              status={windowsDefender.antivirus_enabled ? "online" : "error"}
-              showLabel
-              label={windowsDefender.antivirus_enabled ? "Enabled" : "Disabled"}
-            />
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm">Real-time Protection</span>
-            <StatusIndicator 
-              status={windowsDefender.real_time_protection ? "online" : "error"}
-              showLabel
-              label={windowsDefender.real_time_protection ? "Enabled" : "Disabled"}
-            />
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm">Service Status</span>
-            <StatusIndicator 
-              status={windowsDefender.am_service_running ? "online" : "error"}
-              showLabel
-              label={windowsDefender.am_service_running ? "Running" : "Stopped"}
-            />
-          </div>
-          <div className="flex items-center justify-between pt-2 border-t border-card-border">
-            <span className="text-sm">Last Scan</span>
-            <Badge variant="outline" className="text-xs">
-              {typeof windowsDefender.last_quick_scan_days_ago === 'number' 
-                ? `${windowsDefender.last_quick_scan_days_ago} days ago`
-                : windowsDefender.last_quick_scan_days_ago
-              }
-            </Badge>
-          </div>
+          {!windowsDefender ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <Shield className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <p className="text-sm">Security information not available</p>
+              <p className="text-xs mt-1">Available only in full system reports</p>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between">
+                <span className="text-sm">Antivirus Protection</span>
+                <StatusIndicator 
+                  status={windowsDefender.antivirus_enabled ? "online" : "error"}
+                  showLabel
+                  label={windowsDefender.antivirus_enabled ? "Enabled" : "Disabled"}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm">Real-time Protection</span>
+                <StatusIndicator 
+                  status={windowsDefender.real_time_protection ? "online" : "error"}
+                  showLabel
+                  label={windowsDefender.real_time_protection ? "Enabled" : "Disabled"}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm">Service Status</span>
+                <StatusIndicator 
+                  status={windowsDefender.am_service_running ? "online" : "error"}
+                  showLabel
+                  label={windowsDefender.am_service_running ? "Running" : "Stopped"}
+                />
+              </div>
+              <div className="flex items-center justify-between pt-2 border-t border-card-border">
+                <span className="text-sm">Last Scan</span>
+                <Badge variant="outline" className="text-xs">
+                  {typeof windowsDefender.last_quick_scan_days_ago === 'number' 
+                    ? `${windowsDefender.last_quick_scan_days_ago} days ago`
+                    : windowsDefender.last_quick_scan_days_ago
+                  }
+                </Badge>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
@@ -109,7 +122,7 @@ export default function SecurityOverview({
             <StatusIndicator 
               status={uacStatus === "Enabled" ? "online" : "warning"}
               showLabel
-              label={uacStatus}
+              label={uacStatus || "N/A"}
             />
           </div>
           

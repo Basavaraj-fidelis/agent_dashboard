@@ -9,6 +9,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { agentId } = req.params;
       const heartbeatData = req.body;
+      
+      console.log(`[DEBUG] Received heartbeat from agent ${agentId}:`, JSON.stringify(heartbeatData, null, 2));
 
       // Create or update agent
       await storage.createOrUpdateAgent({
@@ -42,6 +44,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { agentId } = req.params;
       const reportData = req.body;
+      
+      console.log(`[DEBUG] Received report from agent ${agentId}`);
 
       await storage.insertReport({
         agentId,

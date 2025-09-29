@@ -125,9 +125,12 @@ def build_heartbeat_payload():
 def send_heartbeat():
     try:
         heartbeat_data = build_heartbeat_payload()
+        print(f"[DEBUG] Sending heartbeat to: {ITSM_HEARTBEAT_URL}")
+        print(f"[DEBUG] Heartbeat data: {json.dumps(heartbeat_data, indent=2)}")
+        
         resp = requests.post(ITSM_HEARTBEAT_URL, json=heartbeat_data, timeout=10)
         if resp.status_code == 200:
-            print(f"[Info] Heartbeat sent at {datetime.datetime.now()}")
+            print(f"[Info] Heartbeat sent successfully at {datetime.datetime.now()}")
         else:
             print(f"[Warning] Heartbeat failed: {resp.status_code}, {resp.text}")
         insert_heartbeat(AGENT_ID, heartbeat_data)
@@ -153,10 +156,11 @@ def run_full_report():
 
 def push_file_to_itsm(filepath):
     try:
+        print(f"[DEBUG] Pushing report to: {ITSM_REPORT_URL}")
         with open(filepath, "rb") as f:
             resp = requests.post(ITSM_REPORT_URL, files={"file": f}, timeout=15)
         if resp.status_code == 200:
-            print(f"[Info] Full report sent at {datetime.datetime.now()}")
+            print(f"[Info] Full report sent successfully at {datetime.datetime.now()}")
             return True
         else:
             print(f"[Error] Failed to push report: {resp.status_code}, {resp.text}")

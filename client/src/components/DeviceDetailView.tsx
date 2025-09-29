@@ -7,7 +7,8 @@ import ProcessTable from "./ProcessTable";
 import SecurityOverview from "./SecurityOverview";
 import NetworkInfo from "./NetworkInfo";
 import InstalledApps from "./InstalledApps";
-import DiskInfo from "./DiskInfo"; // Assuming DiskInfo component exists
+import DiskInfo from "./DiskInfo";
+import UsbDevices from "./UsbDevices";
 import { ArrowLeft, Monitor, Cpu, HardDrive, MemoryStick, Clock, MapPin } from "lucide-react";
 import { useState } from "react";
 import { useQuery } from '@tanstack/react-query';
@@ -102,6 +103,14 @@ interface DeviceData {
     install_location: string;
   }>;
 
+  // USB devices
+  usbDevices?: Array<{
+    DeviceID: string;
+    Model: string;
+    SizeGB: string;
+    Status: string;
+  }>;
+
   // Open ports (optional)
   openPorts?: Array<{
     ip: string;
@@ -183,6 +192,7 @@ export default function DeviceDetailView({ device, onBack, isLoading }: DeviceDe
   const networkInfo = extractData(reportData, 'system_info.NetworkInfo', 'NetworkInfo', 'network_info', 'networkInfo');
   const windowsSecurity = extractData(reportData, 'windows_security', 'WindowsSecurity', 'windowsSecurity');
   const installedApps = extractData(reportData, 'installed_apps.installed_apps', 'installed_apps', 'InstalledApps', 'installedApps');
+  const usbDevices = extractData(reportData, 'system_info.USBStorageDevices', 'USBStorageDevices', 'usb_devices', 'usbDevices');
 
   console.log('[DEBUG] Extracted data:', {
     systemInfo: !!systemInfo,
@@ -190,7 +200,8 @@ export default function DeviceDetailView({ device, onBack, isLoading }: DeviceDe
     topProcesses: !!topProcesses,
     networkInfo: !!networkInfo,
     windowsSecurity: !!windowsSecurity,
-    installedApps: !!installedApps
+    installedApps: !!installedApps,
+    usbDevices: !!usbDevices
   });
 
 
@@ -284,9 +295,10 @@ export default function DeviceDetailView({ device, onBack, isLoading }: DeviceDe
 
       {/* Detailed Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
           <TabsTrigger value="storage" data-testid="tab-storage">Storage</TabsTrigger>
+          <TabsTrigger value="usb" data-testid="tab-usb">USB</TabsTrigger>
           <TabsTrigger value="network" data-testid="tab-network">Network</TabsTrigger>
           <TabsTrigger value="security" data-testid="tab-security">Security</TabsTrigger>
           <TabsTrigger value="processes" data-testid="tab-processes">Processes</TabsTrigger>
@@ -537,6 +549,36 @@ export default function DeviceDetailView({ device, onBack, isLoading }: DeviceDe
                 </Card>
               ))}
             </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="usb" className="space-y-6">
+          {isLoading || isLoadingReport ? (
+            <Card className="animate-pulse">
+              <CardHeader>
+                <div className="h-5 bg-muted rounded w-1/4"></div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {[...Array(3)].map((_, i) => (
+                    <div key={i} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className="w-4 h-4 bg-muted rounded"></div>
+                        <div>
+                          <div className="h-3 bg-muted rounded w-24 mb-1"></div>
+                          <div className="h-2 bg-muted rounded w-32"></div>
+                        </div>
+                      </div>
+                      <div className="h-6 w-16 bg-muted rounded"></div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          ) : reportError ? (
+            <div className="text-center text-red-500 p-8">Failed to load device report.</div>
+          ) : (
+            <UsbDevices usbDevices={Array.isArray(usbDevices) ? usbDevices : []} />
           )}
         </TabsContent>
       </Tabs>

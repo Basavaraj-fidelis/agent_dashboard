@@ -173,11 +173,12 @@ def run_full_report():
         print(f"[Error] Running full_system_report.py failed: {e}")
         return None
 
-def push_file_to_itsm(filepath):
+def push_report_to_itsm(report_data):
     try:
         print(f"[DEBUG] Pushing report to: {ITSM_REPORT_URL}")
-        with open(filepath, "rb") as f:
-            resp = requests.post(ITSM_REPORT_URL, files={"file": f}, timeout=15)
+        print(f"[DEBUG] Report data keys: {list(report_data.keys()) if report_data else 'No data'}")
+        
+        resp = requests.post(ITSM_REPORT_URL, json=report_data, timeout=15)
         if resp.status_code == 200:
             print(f"[Info] Full report sent successfully at {datetime.datetime.now()}")
             return True
@@ -196,11 +197,12 @@ def full_report_worker():
             try:
                 with open(report_file, "r") as f:
                     report_json = json.load(f)
+                print(f"[DEBUG] Full report generated with keys: {list(report_json.keys())}")
                 insert_full_report(AGENT_ID, report_json)
+                push_report_to_itsm(report_json)
+                LAST_FULL_REPORT = time.time()
             except Exception as e:
-                print(f"[Error] Saving full report to DB failed: {e}")
-            push_file_to_itsm(report_file)
-            LAST_FULL_REPORT = time.time()
+                print(f"[Error] Processing full report failed: {e}")
 
 # ======================
 # Command Polling

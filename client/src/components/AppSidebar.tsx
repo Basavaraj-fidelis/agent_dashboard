@@ -13,7 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import StatusIndicator from "./StatusIndicator";
 import ThemeToggle from "./ThemeToggle";
-import { Monitor, Activity, Shield, Network, Package, Settings, Database, Users } from "lucide-react";
+import { Monitor, Activity, Settings, Users } from "lucide-react";
 import { Link, useLocation } from "wouter";
 
 interface AppSidebarProps {
@@ -38,24 +38,6 @@ export default function AppSidebar({ agentCount = { online: 0, total: 0 } }: App
       url: "/monitor",
       icon: Activity,
       description: "Performance metrics"
-    },
-    {
-      title: "Security",
-      url: "/security", 
-      icon: Shield,
-      description: "Security status"
-    },
-    {
-      title: "Network",
-      url: "/network",
-      icon: Network,
-      description: "Network details"
-    },
-    {
-      title: "Applications",
-      url: "/applications",
-      icon: Package,
-      description: "Installed software"
     }
   ];
 
@@ -65,12 +47,6 @@ export default function AppSidebar({ agentCount = { online: 0, total: 0 } }: App
       url: "/agents",
       icon: Users,
       description: "Manage agents"
-    },
-    {
-      title: "Database",
-      url: "/database",
-      icon: Database,
-      description: "Data management"
     },
     {
       title: "Settings",

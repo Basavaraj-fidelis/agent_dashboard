@@ -81,7 +81,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { agentId } = req.params;
       const reportData = req.body;
 
-      console.log(`[DEBUG] Received report from agent ${agentId}`);
+      console.log(`[DEBUG] Received report from agent ${agentId}:`, JSON.stringify(reportData, null, 2));
+      console.log(`[DEBUG] Report data keys:`, Object.keys(reportData || {}));
+
+      // Validate that we have actual report data
+      if (!reportData || typeof reportData !== 'object' || Object.keys(reportData).length === 0) {
+        console.log(`[WARNING] Empty or invalid report data received from agent ${agentId}`);
+        return res.status(400).json({ error: "Empty or invalid report data" });
+      }
 
       await storage.insertReport({
         agentId,
@@ -90,6 +97,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         collectedAt: new Date()
       });
 
+      console.log(`[DEBUG] Successfully stored full system report for agent ${agentId}`);
       res.json({ success: true, message: "Report received" });
     } catch (error) {
       console.error("Error processing report:", error);
@@ -188,18 +196,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // First try to get full system report
       const fullReport = await storage.getLatestReport(agentId, "full_system_report");
       console.log(`[DEBUG] Full system report found:`, !!fullReport);
-      console.log(`[DEBUG] Full system report data:`, fullReport?.reportData ? Object.keys(fullReport.reportData).length : 'null/undefined');
-
-      if (fullReport && fullReport.reportData && Object.keys(fullReport.reportData).length > 0) {
-        console.log(`[DEBUG] Returning full system report for agent ${agentId}`);
-        return res.json(fullReport.reportData);
+      
+      if (fullReport?.reportData) {
+        const reportDataKeys = Object.keys(fullReport.reportData);
+        console.log(`[DEBUG] Full system report data keys:`, reportDataKeys);
+        console.log(`[DEBUG] Full system report data structure:`, JSON.stringify(fullReport.reportData, null, 2));
+        
+        if (reportDataKeys.length > 0) {
+          console.log(`[DEBUG] Returning full system report for agent ${agentId}`);
+          return res.json(fullReport.reportData);
+        }
       }
 
       // If no full report, try to get system info from heartbeat report
       const heartbeatReport = await storage.getLatestReport(agentId, "system_info_heartbeat");
       console.log(`[DEBUG] Heartbeat system report found:`, !!heartbeatReport);
       
-      if (heartbeatReport && heartbeatReport.reportData) {
+      if (heartbeatReport?.reportData) {
+        console.log(`[DEBUG] Heartbeat report data keys:`, Object.keys(heartbeatReport.reportData));
         console.log(`[DEBUG] Returning heartbeat system report for agent ${agentId}`);
         return res.json(heartbeatReport.reportData);
       }
@@ -210,6 +224,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error fetching latest report:', error);
       res.status(500).json({ error: 'Failed to fetch latest report' });
+    }
+  });
+
+  // Debug endpoint to inspect database contents
+  app.get('/api/debug/agents/:agentId/reports', async (req, res) => {
+    try {
+      const { agentId } = req.params;
+      
+      // Get all reports for this agent
+      const fullReports = await storage.getLatestReport(agentId, "full_system_report");
+      const heartbeatReports = await storage.getLatestReport(agentId, "system_info_heartbeat");
+      
+      res.json({
+        agent_id: agentId,
+        full_report: fullReports ? {
+          collected_at: fullReports.collectedAt,
+          data_type: typeof fullReports.reportData,
+          data_keys: fullReports.reportData ? Object.keys(fullReports.reportData) : [],
+          data: fullReports.reportData
+        } : null,
+        heartbeat_report: heartbeatReports ? {
+          collected_at: heartbeatReports.collectedAt,
+          data_type: typeof heartbeatReports.reportData,
+          data_keys: heartbeatReports.reportData ? Object.keys(heartbeatReports.reportData) : [],
+          data: heartbeatReports.reportData
+        } : null
+      });
+    } catch (error) {
+      console.error('Debug endpoint error:', error);
+      res.status(500).json({ error: 'Debug query failed' });
     }
   });
 

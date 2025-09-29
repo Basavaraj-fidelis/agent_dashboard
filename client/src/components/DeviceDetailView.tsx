@@ -10,6 +10,7 @@ import InstalledApps from "./InstalledApps";
 import DiskInfo from "./DiskInfo"; // Assuming DiskInfo component exists
 import { ArrowLeft, Monitor, Cpu, HardDrive, MemoryStick, Clock, MapPin } from "lucide-react";
 import { useState } from "react";
+import { useQuery } from '@tanstack/react-query';
 
 interface DeviceData {
   // Basic device info
@@ -136,15 +137,72 @@ export default function DeviceDetailView({ device, onBack, isLoading }: DeviceDe
     return `${days}d ago`;
   };
 
+  const { data: reportData, error: reportError, isLoading: isLoadingReport } = useQuery({
+    queryKey: ["agent-report", device.agentId],
+    queryFn: async () => {
+      const response = await fetch(`/api/agents/${device.agentId}/latest-report`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch report');
+      }
+      const data = await response.json();
+      console.log('[DEBUG] Frontend received report data:', data);
+      console.log('[DEBUG] Report data keys:', Object.keys(data || {}));
+      return data;
+    },
+    enabled: !!device.agentId,
+    retry: 1,
+    refetchInterval: 30000 // Refetch every 30 seconds
+  });
+
+  // Extract system information from the report data with comprehensive fallbacks
+  const extractData = (reportData: any, ...paths: string[]) => {
+    for (const path of paths) {
+      const keys = path.split('.');
+      let current = reportData;
+      let found = true;
+
+      for (const key of keys) {
+        if (current && typeof current === 'object' && key in current) {
+          current = current[key];
+        } else {
+          found = false;
+          break;
+        }
+      }
+
+      if (found && current !== undefined && current !== null) {
+        return current;
+      }
+    }
+    return null;
+  };
+
+  const systemInfo = extractData(reportData, 'SystemInfo', 'system_info.SystemInfo', 'system_info');
+  const diskInfo = extractData(reportData, 'DiskInfo', 'disk_info', 'diskInfo');
+  const topProcesses = extractData(reportData, 'TopProcesses', 'top_processes', 'topProcesses');
+  const networkInfo = extractData(reportData, 'NetworkInfo', 'network_info', 'networkInfo');
+  const windowsSecurity = extractData(reportData, 'WindowsSecurity', 'windows_security', 'windowsSecurity');
+  const installedApps = extractData(reportData, 'InstalledApps', 'installed_apps', 'installedApps');
+
+  console.log('[DEBUG] Extracted data:', {
+    systemInfo: !!systemInfo,
+    diskInfo: !!diskInfo,
+    topProcesses: !!topProcesses,
+    networkInfo: !!networkInfo,
+    windowsSecurity: !!windowsSecurity,
+    installedApps: !!installedApps
+  });
+
+
   return (
     <div className="space-y-6" data-testid={`device-detail-${device.hostname}`}>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           {onBack && (
-            <Button 
-              variant="ghost" 
-              size="icon" 
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={onBack}
               data-testid="button-back"
             >
@@ -181,7 +239,7 @@ export default function DeviceDetailView({ device, onBack, isLoading }: DeviceDe
               <Cpu className="w-8 h-8 text-muted-foreground" />
               <div>
                 <p className="text-sm text-muted-foreground">CPU</p>
-                <p className="font-semibold text-sm">{device.systemInfo?.cpu.split('(')[0].trim() || 'N/A'}</p>
+                <p className="font-semibold text-sm">{systemInfo?.cpu.split('(')[0].trim() || 'N/A'}</p>
               </div>
             </div>
           </CardContent>
@@ -193,7 +251,7 @@ export default function DeviceDetailView({ device, onBack, isLoading }: DeviceDe
               <MemoryStick className="w-8 h-8 text-muted-foreground" />
               <div>
                 <p className="text-sm text-muted-foreground">RAM</p>
-                <p className="font-semibold text-sm">{device.systemInfo?.ram || 'N/A'}</p>
+                <p className="font-semibold text-sm">{systemInfo?.ram || 'N/A'}</p>
               </div>
             </div>
           </CardContent>
@@ -205,7 +263,7 @@ export default function DeviceDetailView({ device, onBack, isLoading }: DeviceDe
               <HardDrive className="w-8 h-8 text-muted-foreground" />
               <div>
                 <p className="text-sm text-muted-foreground">Storage</p>
-                <p className="font-semibold text-sm">{device.systemInfo?.totalDisk || 'N/A'}</p>
+                <p className="font-semibold text-sm">{systemInfo?.totalDisk || 'N/A'}</p>
               </div>
             </div>
           </CardContent>
@@ -236,7 +294,7 @@ export default function DeviceDetailView({ device, onBack, isLoading }: DeviceDe
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
-          {isLoading ? (
+          {isLoading || isLoadingReport ? (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card className="animate-pulse">
                 <CardHeader>
@@ -260,6 +318,8 @@ export default function DeviceDetailView({ device, onBack, isLoading }: DeviceDe
                 </CardContent>
               </Card>
             </div>
+          ) : reportError ? (
+            <div className="text-center text-red-500 p-8">Failed to load device report.</div>
           ) : (
             <>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -271,23 +331,23 @@ export default function DeviceDetailView({ device, onBack, isLoading }: DeviceDe
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    {device.systemInfo ? (
+                    {systemInfo ? (
                       <>
                         <div className="grid grid-cols-3 gap-2 text-sm">
                           <span className="font-medium">CPU:</span>
-                          <span className="col-span-2">{device.systemInfo.cpu}</span>
+                          <span className="col-span-2">{systemInfo.cpu}</span>
                         </div>
                         <div className="grid grid-cols-3 gap-2 text-sm">
                           <span className="font-medium">RAM:</span>
-                          <span className="col-span-2">{device.systemInfo.ram}</span>
+                          <span className="col-span-2">{systemInfo.ram}</span>
                         </div>
                         <div className="grid grid-cols-3 gap-2 text-sm">
                           <span className="font-medium">Graphics:</span>
-                          <span className="col-span-2">{device.systemInfo.graphics}</span>
+                          <span className="col-span-2">{systemInfo.graphics}</span>
                         </div>
                         <div className="grid grid-cols-3 gap-2 text-sm">
                           <span className="font-medium">Total Disk:</span>
-                          <span className="col-span-2">{device.systemInfo.totalDisk}</span>
+                          <span className="col-span-2">{systemInfo.totalDisk}</span>
                         </div>
                       </>
                     ) : (
@@ -296,21 +356,21 @@ export default function DeviceDetailView({ device, onBack, isLoading }: DeviceDe
                   </CardContent>
                 </Card>
 
-                <DiskInfo diskData={device.diskInfo || []} />
+                <DiskInfo diskData={diskInfo || []} />
               </div>
 
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                <ProcessTable 
-                  processes={device.topProcesses?.top_cpu || []} 
-                  title="Top CPU Processes" 
+                <ProcessTable
+                  processes={topProcesses?.top_cpu || []}
+                  title="Top CPU Processes"
                   type="cpu"
                   systemUsage={{ cpu: 15.4, memory: 65.2 }}
                 />
-                <ProcessTable 
-                  processes={device.topProcesses?.top_memory || []} 
-                  title="Top Memory Processes" 
+                <ProcessTable
+                  processes={topProcesses?.top_memory || []}
+                  title="Top Memory Processes"
                   type="memory"
-                  systemUsage={{ memory: 65.2, totalRam: device.systemInfo?.ram || "Unknown" }}
+                  systemUsage={{ memory: 65.2, totalRam: systemInfo?.ram || "Unknown" }}
                 />
               </div>
             </>
@@ -318,7 +378,7 @@ export default function DeviceDetailView({ device, onBack, isLoading }: DeviceDe
         </TabsContent>
 
         <TabsContent value="processes" className="space-y-6">
-          {isLoading ? (
+          {isLoading || isLoadingReport ? (
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
               <Card className="animate-pulse h-96">
                 <CardHeader>
@@ -337,16 +397,18 @@ export default function DeviceDetailView({ device, onBack, isLoading }: DeviceDe
                 </CardContent>
               </Card>
             </div>
+          ) : reportError ? (
+            <div className="text-center text-red-500 p-8">Failed to load device report.</div>
           ) : (
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
               <ProcessTable
-                processes={device.topProcesses?.top_cpu.slice(0, 10) || []}
+                processes={topProcesses?.top_cpu.slice(0, 10) || []}
                 title="Top CPU Processes"
                 type="cpu"
                 systemUsage={{ cpu: 15.4, memory: 65.2 }}
               />
               <ProcessTable
-                processes={device.topProcesses?.top_memory.slice(0, 10) || []}
+                processes={topProcesses?.top_memory.slice(0, 10) || []}
                 title="Top Memory Processes"
                 type="memory"
                 systemUsage={{ memory: 65.2 }}
@@ -356,7 +418,7 @@ export default function DeviceDetailView({ device, onBack, isLoading }: DeviceDe
         </TabsContent>
 
         <TabsContent value="security" className="space-y-6">
-          {isLoading ? (
+          {isLoading || isLoadingReport ? (
             <Card className="animate-pulse">
               <CardHeader>
                 <div className="h-5 bg-muted rounded w-1/4"></div>
@@ -365,20 +427,22 @@ export default function DeviceDetailView({ device, onBack, isLoading }: DeviceDe
                 <div className="h-32 bg-muted rounded"></div>
               </CardContent>
             </Card>
+          ) : reportError ? (
+            <div className="text-center text-red-500 p-8">Failed to load device report.</div>
           ) : (
             <SecurityOverview
-              windowsDefender={device.windowsSecurity?.windows_defender}
-              firewall={device.windowsSecurity?.firewall || []}
-              uacStatus={device.windowsSecurity?.uac_status}
-              installedAv={device.windowsSecurity?.installed_av || []}
-              restartPending={device.windowsSecurity?.restart_pending}
-              recentPatches={device.windowsSecurity?.recent_patches || []}
+              windowsDefender={windowsSecurity?.windows_defender}
+              firewall={windowsSecurity?.firewall || []}
+              uacStatus={windowsSecurity?.uac_status}
+              installedAv={windowsSecurity?.installed_av || []}
+              restartPending={windowsSecurity?.restart_pending}
+              recentPatches={windowsSecurity?.recent_patches || []}
             />
           )}
         </TabsContent>
 
         <TabsContent value="network" className="space-y-6">
-          {isLoading ? (
+          {isLoading || isLoadingReport ? (
             <Card className="animate-pulse">
               <CardHeader>
                 <div className="h-5 bg-muted rounded w-1/4"></div>
@@ -387,19 +451,21 @@ export default function DeviceDetailView({ device, onBack, isLoading }: DeviceDe
                 <div className="h-32 bg-muted rounded"></div>
               </CardContent>
             </Card>
+          ) : reportError ? (
+            <div className="text-center text-red-500 p-8">Failed to load device report.</div>
           ) : (
             <NetworkInfo
-              localIp={device.networkInfo?.local_ip || "N/A"}
-              publicIp={device.networkInfo?.public_ip || "N/A"}
-              location={device.networkInfo?.location || "N/A"}
-              nicDetails={device.networkInfo?.nic_details || []}
+              localIp={networkInfo?.local_ip || "N/A"}
+              publicIp={networkInfo?.public_ip || "N/A"}
+              location={networkInfo?.location || "N/A"}
+              nicDetails={networkInfo?.nic_details || []}
               openPorts={device.openPorts || []}
             />
           )}
         </TabsContent>
 
         <TabsContent value="applications" className="space-y-6">
-          {isLoading ? (
+          {isLoading || isLoadingReport ? (
             <Card className="animate-pulse">
               <CardHeader>
                 <div className="h-5 bg-muted rounded w-1/4"></div>
@@ -412,13 +478,15 @@ export default function DeviceDetailView({ device, onBack, isLoading }: DeviceDe
                 </div>
               </CardContent>
             </Card>
+          ) : reportError ? (
+            <div className="text-center text-red-500 p-8">Failed to load device report.</div>
           ) : (
-            <InstalledApps apps={device.installedApps || []} />
+            <InstalledApps apps={installedApps || []} />
           )}
         </TabsContent>
 
         <TabsContent value="storage" className="space-y-6">
-          {isLoading ? (
+          {isLoading || isLoadingReport ? (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {[...Array(2)].map((_, index) => (
                 <Card key={index} className="animate-pulse">
@@ -445,9 +513,11 @@ export default function DeviceDetailView({ device, onBack, isLoading }: DeviceDe
                 </Card>
               ))}
             </div>
+          ) : reportError ? (
+            <div className="text-center text-red-500 p-8">Failed to load device report.</div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {(device.diskInfo || []).map((disk, index) => (
+              {(diskInfo || []).map((disk, index) => (
                 <Card key={index}>
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between mb-2">

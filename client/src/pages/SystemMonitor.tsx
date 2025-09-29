@@ -1,6 +1,7 @@
+
 import DeviceList from "@/components/DeviceList";
 import DeviceDetailView from "@/components/DeviceDetailView";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface Device {
   agentId: string;
@@ -12,222 +13,211 @@ interface Device {
   status: "online" | "offline" | "warning";
 }
 
-export default function SystemMonitor() {
-  //todo: remove mock functionality
-  const mockDevices: Device[] = [
-    {
-      agentId: "AGENT005",
-      hostname: "DESKTOP-CMM8H3C",
-      os: "Windows 11 Home Single Language",
-      location: "Bengaluru - Karnataka - India",
-      username: "basav",
-      lastHeartbeat: new Date(Date.now() - 300000).toISOString(),
-      status: "online"
-    },
-    {
-      agentId: "AGENT003", 
-      hostname: "WORKSTATION-01",
-      os: "Windows 11 Pro",
-      location: "New York - NY - USA",
-      username: "john.doe",
-      lastHeartbeat: new Date(Date.now() - 1800000).toISOString(),
-      status: "warning"
-    },
-    {
-      agentId: "AGENT001",
-      hostname: "LAPTOP-DEV",
-      os: "Windows 10 Enterprise",
-      location: "London - England - UK", 
-      username: "jane.smith",
-      lastHeartbeat: new Date(Date.now() - 7200000).toISOString(),
-      status: "offline"
-    },
-    {
-      agentId: "AGENT007",
-      hostname: "SERVER-PROD-01",
-      os: "Windows Server 2022",
-      location: "Tokyo - Tokyo - Japan",
-      username: "admin.server",
-      lastHeartbeat: new Date(Date.now() - 60000).toISOString(),
-      status: "online"
-    }
-  ];
+interface DetailedDevice {
+  agentId: string;
+  hostname: string;
+  os: string;
+  location: string;
+  username: string;
+  lastHeartbeat: string;
+  status: "online" | "offline" | "warning";
+  systemInfo?: {
+    cpu: string;
+    ram: string;
+    graphics: string;
+    totalDisk: string;
+  };
+  diskInfo?: Array<{
+    Device: string;
+    Total: string;
+    Used: string;
+    Free: string;
+    "Usage %": string;
+  }>;
+  topProcesses?: {
+    top_cpu: Array<{
+      pid: number;
+      name: string;
+      cpu_percent: number;
+      memory_percent: number;
+      memory_mb: number;
+    }>;
+    top_memory: Array<{
+      pid: number;
+      name: string;
+      cpu_percent: number;
+      memory_percent: number;
+      memory_mb: number;
+    }>;
+  };
+  networkInfo?: {
+    local_ip: string;
+    public_ip: string;
+    location: string;
+    nic_details: Array<{
+      Description: string;
+      MAC: string;
+      ConnectionType: string;
+      "IP Addresses": string;
+    }>;
+  };
+  windowsSecurity?: {
+    windows_defender: {
+      antivirus_enabled: boolean;
+      real_time_protection: boolean;
+      am_service_running: boolean;
+      last_quick_scan_days_ago: number;
+    };
+    firewall: Array<{
+      profile: string;
+      enabled: boolean;
+    }>;
+    uac_status: string;
+    installed_av: Array<{
+      name: string;
+      state: string;
+    }>;
+    restart_pending: boolean;
+    recent_patches: Array<{
+      hotfix_id: string;
+      installed_on: string;
+    }>;
+  };
+  installedApps?: Array<{
+    name: string;
+    version: string;
+    publisher: string;
+    install_location: string;
+  }>;
+  openPorts?: Array<{
+    ip: string;
+    local_port: number;
+    process_name: string;
+    protocol: string;
+    service: string;
+    critical: boolean;
+    recommendation: string;
+  }>;
+}
 
-  //todo: remove mock functionality - detailed device data
-  const mockDetailedDevice = {
-    agentId: "AGENT005",
-    hostname: "DESKTOP-CMM8H3C", 
-    os: "Microsoft Windows 11 Home Single Language (10.0.26100)",
-    location: "Bengaluru - Karnataka - India",
-    username: "basav",
-    lastHeartbeat: new Date(Date.now() - 300000).toISOString(),
-    status: "online" as const,
-    
-    systemInfo: {
-      cpu: "AMD Ryzen 5 5600H with Radeon Graphics (6 cores / 12 threads, 3301 MHz)",
-      ram: "7.35 GB",
-      graphics: "AMD Radeon(TM) Graphics, Radeon RX 5500M",
-      totalDisk: "476.11 GB"
-    },
-    
-    diskInfo: [
-      {
-        Device: "C:\\",
-        Total: "389.79 GB",
-        Used: "231.05 GB", 
-        Free: "158.74 GB",
-        "Usage %": "59.3 %"
-      },
-      {
-        Device: "E:\\",
-        Total: "86.31 GB",
-        Used: "21.10 GB",
-        Free: "65.22 GB", 
-        "Usage %": "24.4 %"
+export default function SystemMonitor() {
+  const [devices, setDevices] = useState<Device[]>([]);
+  const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
+  const [detailedDevice, setDetailedDevice] = useState<DetailedDevice | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+
+  useEffect(() => {
+    fetchDevices();
+  }, []);
+
+  const fetchDevices = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch('/api/agents');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-    ],
-    
-    topProcesses: {
-      top_cpu: [
-        {
-          pid: 48408,
-          name: "WmiPrvSE.exe",
-          cpu_percent: 25.2,
-          memory_percent: 0.505,
-          memory_mb: 37.98
-        },
-        {
-          pid: 5264,
-          name: "am_aiops_agent_restart.exe", 
-          cpu_percent: 15.6,
-          memory_percent: 0.076,
-          memory_mb: 5.69
-        }
-      ],
-      top_memory: [
-        {
-          pid: 21908,
-          name: "brave.exe",
-          cpu_percent: 0.0,
-          memory_percent: 4.095,
-          memory_mb: 308.05
-        },
-        {
-          pid: 3488,
-          name: "MemCompression",
-          cpu_percent: 0.0, 
-          memory_percent: 3.245,
-          memory_mb: 244.12
-        }
-      ]
-    },
-    
-    networkInfo: {
-      local_ip: "192.168.1.80",
-      public_ip: "139.167.219.110",
-      location: "Bengaluru - Karnataka - India",
-      nic_details: [
-        {
-          Description: "Realtek Gaming GbE Family Controller",
-          MAC: "84:69:93:6F:43:04",
-          ConnectionType: "LAN",
-          "IP Addresses": "192.168.1.80, fe80::ba77:9754:bc7:6e3b"
-        }
-      ]
-    },
-    
-    windowsSecurity: {
-      windows_defender: {
-        antivirus_enabled: true,
-        real_time_protection: true,
-        am_service_running: true,
-        last_quick_scan_days_ago: 2
-      },
-      firewall: [
-        { profile: "Domain", enabled: true },
-        { profile: "Private", enabled: true },
-        { profile: "Public", enabled: true }
-      ],
-      uac_status: "Enabled",
-      installed_av: [
-        { name: "Windows Defender", state: "Enabled" }
-      ],
-      restart_pending: false,
-      recent_patches: [
-        { hotfix_id: "KB5034441", installed_on: "2024-01-15T10:30:00Z" },
-        { hotfix_id: "KB5034123", installed_on: "2024-01-10T14:20:00Z" }
-      ]
-    },
-    
-    installedApps: [
-      {
-        name: "Google Chrome",
-        version: "140.0.7339.208",
-        publisher: "Google LLC",
-        install_location: "Unknown"
-      },
-      {
-        name: "Docker Desktop",
-        version: "4.38.0",
-        publisher: "Docker Inc.", 
-        install_location: "C:\\Program Files\\Docker\\Docker"
-      },
-      {
-        name: "Cursor 0.45.14",
-        version: "0.45.14",
-        publisher: "Cursor AI, Inc.",
-        install_location: "Unknown"
-      },
-      {
-        name: "PostgreSQL 17",
-        version: "17.5-2",
-        publisher: "PostgreSQL Global Development Group",
-        install_location: "C:\\Program Files\\PostgreSQL\\17"
-      }
-    ],
-    
-    openPorts: [
-      {
-        ip: "0.0.0.0",
-        local_port: 445,
-        process_name: "System",
-        protocol: "TCP",
-        service: "SMB",
-        critical: true,
-        recommendation: "Check / Restrict Access"
-      }
-    ]
+      const data: Device[] = await response.json();
+      setDevices(data);
+    } catch (error) {
+      console.error("Failed to fetch devices:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
+  const fetchDeviceDetails = async (agentId: string) => {
+    try {
+      setIsLoadingDetails(true);
+      
+      // Fetch the latest report for this agent
+      const reportResponse = await fetch(`/api/agents/${agentId}/latest-report`);
+      let reportData = null;
+      
+      if (reportResponse.ok) {
+        reportData = await reportResponse.json();
+      }
 
-  const handleDeviceSelect = (device: Device) => {
+      // Combine basic device info with detailed report data
+      const baseDevice = devices.find(d => d.agentId === agentId);
+      if (!baseDevice) return null;
+
+      const detailed: DetailedDevice = {
+        ...baseDevice,
+        systemInfo: reportData?.system_info?.SystemInfo ? {
+          cpu: reportData.system_info.SystemInfo.cpu || "Unknown",
+          ram: reportData.system_info.SystemInfo.ram || "Unknown", 
+          graphics: reportData.system_info.SystemInfo.graphics || "Unknown",
+          totalDisk: reportData.system_info.SystemInfo.total_disk || "Unknown"
+        } : undefined,
+        diskInfo: reportData?.system_info?.DiskInfo?.map((disk: any) => ({
+          Device: disk.Device || disk.Mountpoint || "Unknown",
+          Total: disk.Total || "Unknown",
+          Used: disk.Used || "Unknown", 
+          Free: disk.Free || "Unknown",
+          "Usage %": disk["Usage %"] || "Unknown"
+        })) || undefined,
+        topProcesses: reportData?.top_processes ? {
+          top_cpu: reportData.top_processes.top_cpu || [],
+          top_memory: reportData.top_processes.top_memory || []
+        } : undefined,
+        networkInfo: reportData?.system_info?.NetworkInfo ? {
+          local_ip: reportData.system_info.NetworkInfo.local_ip || "Unknown",
+          public_ip: reportData.system_info.NetworkInfo.public_ip || "Unknown",
+          location: reportData.system_info.NetworkInfo.location || "Unknown",
+          nic_details: reportData.system_info.NetworkInfo.nic_details || []
+        } : undefined,
+        windowsSecurity: reportData?.windows_security || undefined,
+        installedApps: reportData?.installed_apps?.installed_apps || [],
+        openPorts: reportData?.open_ports?.open_ports || []
+      };
+
+      setDetailedDevice(detailed);
+    } catch (error) {
+      console.error("Failed to fetch device details:", error);
+      // Still set basic device info even if detailed data fails
+      const baseDevice = devices.find(d => d.agentId === agentId);
+      if (baseDevice) {
+        setDetailedDevice(baseDevice as DetailedDevice);
+      }
+    } finally {
+      setIsLoadingDetails(false);
+    }
+  };
+
+  const handleDeviceSelect = async (device: Device) => {
+    console.log("Selected device:", device.hostname);
     setSelectedDevice(device);
+    await fetchDeviceDetails(device.agentId);
   };
 
   const handleBackToList = () => {
     setSelectedDevice(null);
+    setDetailedDevice(null);
   };
 
   const handleRefresh = () => {
     console.log('Refreshing system monitor data...');
-    // In real app, this would fetch fresh data from the API
+    fetchDevices();
   };
 
-  if (selectedDevice) {
+  if (selectedDevice && detailedDevice) {
     return (
       <DeviceDetailView 
-        device={mockDetailedDevice}
+        device={detailedDevice}
         onBack={handleBackToList}
+        isLoading={isLoadingDetails}
       />
     );
   }
 
   return (
     <DeviceList 
-      devices={mockDevices}
+      devices={devices}
       onDeviceSelect={handleDeviceSelect}
       onRefresh={handleRefresh}
+      isLoading={isLoading}
     />
   );
 }

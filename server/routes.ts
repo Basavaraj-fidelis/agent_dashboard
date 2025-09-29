@@ -1,4 +1,3 @@
-
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
@@ -9,7 +8,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { agentId } = req.params;
       const heartbeatData = req.body;
-      
+
       console.log(`[DEBUG] Received heartbeat from agent ${agentId}:`, JSON.stringify(heartbeatData, null, 2));
 
       // Create or update agent
@@ -44,7 +43,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { agentId } = req.params;
       const reportData = req.body;
-      
+
       console.log(`[DEBUG] Received report from agent ${agentId}`);
 
       await storage.insertReport({
@@ -65,7 +64,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/agents", async (req, res) => {
     try {
       const agents = await storage.getAllAgents();
-      
+
       // Calculate status based on last heartbeat
       const agentsWithStatus = agents.map(agent => {
         const lastHeartbeat = new Date(agent.lastHeartbeat);
@@ -99,7 +98,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/agents/:agentId", async (req, res) => {
     try {
       const { agentId } = req.params;
-      
+
       const agent = await storage.getAgent(agentId);
       if (!agent) {
         return res.status(404).json({ error: "Agent not found" });
@@ -119,15 +118,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Agent commands endpoint (for future use)
-  app.get("/api/agents/:agentId/commands", async (req, res) => {
+  // Get commands for a specific agent
+  app.get('/api/agents/:agentId/commands', (req, res) => {
+    const { agentId } = req.params;
+
+    // For now, return empty commands array
+    // In the future, this could return pending commands from a queue
+    res.json({ commands: [] });
+  });
+
+  // Get latest report for a specific agent
+  app.get('/api/agents/:agentId/latest-report', async (req, res) => {
     try {
       const { agentId } = req.params;
-      // For now, return empty commands array
-      res.json({ commands: [] });
+
+      const result = await db.select()
+        .from(agentReports)
+        .where(eq(agentReports.agentId, agentId))
+        .orderBy(desc(agentReports.collectedAt))
+        .limit(1);
+
+      if (result.length === 0) {
+        return res.status(404).json({ error: 'No reports found for this agent' });
+      }
+
+      const report = result[0];
+      res.json(report.reportData);
     } catch (error) {
-      console.error("Error fetching commands:", error);
-      res.status(500).json({ error: "Failed to fetch commands" });
+      console.error('Error fetching latest report:', error);
+      res.status(500).json({ error: 'Failed to fetch latest report' });
     }
   });
 
